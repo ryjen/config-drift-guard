@@ -228,3 +228,56 @@ The assistant read the required docs, inspected the workspace and drift-engine p
 ### Result and remaining risks
 
 The pure deterministic drift engine is implemented and tested. Remaining product risks are integration with the service-config adapter, explicit run state machine, explicit workflow executor, persisted run snapshots using this engine, SSE refetch notifications, approval-gated reconciliation, stale-plan validation, atomic apply, and verification convergence.
+
+## Session 04 — Persisted Drift Scans
+
+**Date:** 2026-07-10
+**Tool/model:** OpenCode, gpt-5.5
+**Milestone:** Milestone 4 — First end-to-end slice
+**Commit:** Pending at time of entry; expected message `feat: execute and display persisted drift scans`.
+
+### Objective
+
+Implement the evaluator-ready scan slice: local service-config adapter, explicit run state machine, explicit workflow executor, persisted steps/findings/plan, start-run and run-detail APIs, and one-page browser UI with refresh-safe persisted state.
+
+### Complete prompt
+
+The user requested work in the current repository, required reading `README.md`, `docs/CURRENT-UNDERSTANDING.md`, `docs/PLAN.md`, and `docs/DECISIONS.md`, and asked for strict TypeScript, deterministic drift detection, a pure drift engine, one explicit run state-machine module, one explicit workflow executor, REST snapshots as authoritative, browser input that cannot specify filesystem paths, adapter-managed field comparison only, server-side immutable plans, no runtime AI, documentation updates, checks before committing, and commit message `feat: execute and display persisted drift scans`. The requested workflow was `validate_canonical_state`, `load_observed_state`, `normalize_state`, `calculate_drift`, `classify_findings`, and `build_remediation_plan`; SSE was explicitly not required in this increment.
+
+### Complete interaction
+
+The assistant read the required docs, inspected the existing workspace, added a service-config adapter with seeded server-controlled canonical and observed state, added an explicit run state-machine module, added a synchronous explicit workflow executor, extended the repository with persisted run and step transitions, wired `POST /api/environments/:id/runs` and `GET /api/runs/:runId`, added API and workflow tests, replaced the connectivity page with a one-page operator console, corrected Biome formatting and React hook dependency issues, added the missing API dependencies and workspace link refresh, ran the full check, and updated implementation documentation.
+
+### Author decisions
+
+- Execute the six-step scan synchronously inside the API request for this vertical slice instead of adding background workers or a generic workflow framework.
+- Keep local adapter fixtures server-owned and in-process for this increment; environment metadata exposes fixture names only, not user-selectable filesystem paths.
+- Store the last run ID in browser local storage so refreshes refetch the authoritative REST snapshot instead of duplicating state-machine logic in React.
+- Stop at immutable plan generation because SSE and reconciliation were outside this requested increment.
+
+### Accepted suggestions
+
+- Persist every workflow step and finding before returning the run snapshot.
+- Use the pure drift engine for comparison, digests, severity, and target generation.
+- Add endpoint tests that prove a run can be created and read back by ID.
+- Add workflow tests for the three expected service-config findings and generated plan target.
+
+### Rejected suggestions
+
+- No runtime AI was added.
+- No SSE, generic workflow/DAG framework, documentation-drift adapter, approval APIs, or reconciliation implementation was added in this milestone.
+- Browser input was not allowed to provide filesystem paths or remediation operations.
+
+### Corrections
+
+- `rtk` was unavailable in the shell, so commands were run directly with `corepack pnpm`.
+- Biome required formatting/import-order fixes and a React hook dependency correction.
+- The API package needed explicit dependencies on `@config-drift-guard/drift-engine` and `zod`; `corepack pnpm install` refreshed workspace links and the lockfile.
+
+### Verification
+
+- `corepack pnpm check` passed.
+
+### Result and remaining risks
+
+The evaluator can start a persisted service-config drift scan from the browser, see the final timeline and findings, and refresh to refetch the saved run snapshot. Remaining product risks are SSE notifications, approval/rejection APIs, stale-plan validation, atomic reconciliation, post-write verification, additional failure hardening, and any secondary documentation-drift adapter.

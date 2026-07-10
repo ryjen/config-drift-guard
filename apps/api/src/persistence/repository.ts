@@ -3,6 +3,7 @@ import {
   type Decision,
   decisionSchema,
   type Environment,
+  type ErrorEnvelope,
   type Event,
   environmentSchema,
   eventSchema,
@@ -12,14 +13,16 @@ import {
   type RemediationPlan,
   type Run,
   type RunSnapshot,
+  type RunStatus,
   remediationPlanSchema,
   runSchema,
   runSnapshotSchema,
   type Step,
+  type StepStatus,
   stepSchema,
   type WorkflowStepKey,
 } from "@config-drift-guard/contracts";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import type { AppDatabase } from "./database.js";
 import {
   decisions,
@@ -167,6 +170,75 @@ export class PersistenceRepository {
       throw new Error(`run_not_found:${runId}`);
     }
     return parseRun(row);
+  }
+
+  updateRunState(
+    runId: string,
+    input: {
+      readonly status: RunStatus;
+      readonly currentStep?: WorkflowStepKey | null;
+      readonly canonicalDigest?: string | null;
+      readonly observedDigest?: string | null;
+      readonly error?: ErrorEnvelope | null;
+    },
+  ): Run {
+    const timestamp = nowIso();
+    this.db
+      .update(runs)
+      .set({
+        status: input.status,
+        currentStep: input.currentStep ?? null,
+        canonicalDigest: input.canonicalDigest,
+        observedDigest: input.observedDigest,
+        error: input.error,
+        version: this.getRun(runId).version + 1,
+        updatedAt: timestamp,
+      })
+      .where(eq(runs.id, runId))
+      .run();
+    this.appendEvent(runId, "run.updated", {
+      status: input.status,
+      currentStep: input.currentStep ?? null,
+    });
+    return this.getRun(runId);
+  }
+
+  updateStepState(
+    runId: string,
+    key: WorkflowStepKey,
+    input: {
+      readonly status: StepStatus;
+      readonly message?: string | null;
+      readonly output?: JsonValue | null;
+      readonly error?: ErrorEnvelope | null;
+    },
+  ): void {
+    const timestamp = nowIso();
+    this.db
+      .update(steps)
+      .set({
+        status: input.status,
+        message: input.message ?? null,
+        output: input.output ?? null,
+        error: input.error ?? null,
+        startedAt: input.status === "running" ? timestamp : undefined,
+        completedAt: ["succeeded", "failed", "skipped"].includes(input.status)
+          ? timestamp
+          : undefined,
+      })
+      .where(and(eq(steps.runId, runId), eq(steps.key, key)))
+      .run();
+    this.appendEvent(runId, `step.${input.status}`, { key });
+  }
+
+  skipPendingSteps(runId: string): void {
+    const timestamp = nowIso();
+    this.db
+      .update(steps)
+      .set({ status: "skipped", message: "Skipped after workflow failure", completedAt: timestamp })
+      .where(and(eq(steps.runId, runId), eq(steps.status, "pending")))
+      .run();
+    this.appendEvent(runId, "steps.pending_skipped", { runId });
   }
 
   getRunSnapshot(runId: string): RunSnapshot {

@@ -6,18 +6,20 @@ It models drift analysis as an explicit, persisted workflow so operators can ini
 
 ## Current status
 
-Milestone 3 has landed: the repository now has a strict pnpm TypeScript workspace with Fastify API, Next.js web app, contracts package, pure drift-engine package, Biome, Vitest, root verification scripts, shared Zod contracts, SQLite persistence through Drizzle, and deterministic normalized-state comparison.
+Milestone 4 has landed: the repository now has a strict pnpm TypeScript workspace with Fastify API, Next.js web app, contracts package, pure drift-engine package, Biome, Vitest, root verification scripts, shared Zod contracts, SQLite persistence through Drizzle, deterministic normalized-state comparison, and an end-to-end persisted service-config drift scan.
 
 Implemented behavior is intentionally narrow:
 
-- `apps/api` exposes `GET /health` and binds to `127.0.0.1` by default.
+- `apps/api` exposes `GET /health`, `GET /api/environments`, `POST /api/environments/:id/runs`, and `GET /api/runs/:runId`, and binds to `127.0.0.1` by default.
 - `apps/api` initializes SQLite at `./data/config-drift-guard.sqlite` by default and exposes seeded environment metadata at `GET /api/environments`.
 - API CORS allows local browser origins only.
-- `apps/web` renders a basic connectivity page that reads API health from the server side.
+- `apps/api` executes the primary six-step workflow synchronously in-process: `validate_canonical_state`, `load_observed_state`, `normalize_state`, `calculate_drift`, `classify_findings`, and `build_remediation_plan`.
+- `apps/api` includes a local service-config adapter with server-controlled seeded canonical and observed state; browser requests cannot provide filesystem paths or arbitrary remediation operations.
+- `apps/web` renders a one-page operator console that starts a drift scan, displays the persisted timeline, findings, evidence digests, and immutable remediation plan, and reloads the last run after browser refresh.
 - `packages/contracts` defines Zod-validated contracts for environments, runs, steps, findings, remediation plans, decisions, events, and REST run snapshots.
 - `packages/drift-engine` implements pure normalized-state comparison over adapter-managed fields, deterministic ordering, stable JSON-pointer-like paths, severity classification, SHA-256 canonical digests, and complete target-state generation.
 - Persistence includes environments, runs, steps, findings, remediation plans, decisions, and events, with repository reads validating persisted JSON through shared schemas.
-- Workflow execution, SSE, API-integrated remediation, and reconciliation are not implemented yet.
+- SSE, approval/rejection APIs, stale-plan validation, atomic reconciliation, and post-write verification are not implemented yet.
 
 ## Local development
 

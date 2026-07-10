@@ -1,70 +1,57 @@
-import type { HealthResponse } from "@config-drift-guard/contracts";
+import type { Environment } from "@config-drift-guard/contracts";
+import { OperatorConsole } from "./operator-console";
 
 export const dynamic = "force-dynamic";
 
-async function readHealth(): Promise<
-  | { connected: true; apiBaseUrl: string; payload: HealthResponse }
-  | { connected: false; apiBaseUrl: string; error: string }
-> {
-  const apiBaseUrl = process.env.API_BASE_URL ?? "http://127.0.0.1:4000";
+async function readEnvironments(): Promise<{
+  readonly apiBaseUrl: string;
+  readonly environments: Environment[];
+  readonly error: string | null;
+}> {
+  const apiBaseUrl =
+    process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.API_BASE_URL ?? "http://127.0.0.1:4000";
 
   try {
-    const response = await fetch(`${apiBaseUrl}/health`, { cache: "no-store" });
+    const response = await fetch(`${apiBaseUrl}/api/environments`, { cache: "no-store" });
 
     if (!response.ok) {
       return {
         apiBaseUrl,
-        connected: false,
+        environments: [],
         error: `API returned HTTP ${response.status}`,
       };
     }
 
     return {
       apiBaseUrl,
-      connected: true,
-      payload: (await response.json()) as HealthResponse,
+      environments: (await response.json()) as Environment[],
+      error: null,
     };
   } catch (error) {
     return {
       apiBaseUrl,
-      connected: false,
+      environments: [],
       error: error instanceof Error ? error.message : "Unknown connectivity error",
     };
   }
 }
 
 export default async function Home() {
-  const health = await readHealth();
+  const { apiBaseUrl, environments, error } = await readEnvironments();
 
-  return (
-    <main className="shell">
-      <section className="panel">
-        <p className="eyebrow">Foundation milestone</p>
-        <h1>Config Drift Guard</h1>
-        <p className="lede">
-          This initial operator console verifies that the Next.js frontend can reach the
-          loopback-bound Fastify API. Drift workflows, persistence, and reconciliation are deferred
-          to later milestones.
-        </p>
-        <dl className="statusGrid">
-          <div>
-            <dt>API base URL</dt>
-            <dd>{health.apiBaseUrl}</dd>
-          </div>
-          <div>
-            <dt>Connectivity</dt>
-            <dd className={health.connected ? "ok" : "error"}>
-              {health.connected ? "Connected" : "Unavailable"}
-            </dd>
-          </div>
-          <div>
-            <dt>Health payload</dt>
-            <dd>
-              <code>{health.connected ? JSON.stringify(health.payload) : health.error}</code>
-            </dd>
-          </div>
-        </dl>
-      </section>
-    </main>
-  );
+  if (error !== null) {
+    return (
+      <main className="shell">
+        <section className="panel">
+          <p className="eyebrow">Operator console</p>
+          <h1>Config Drift Guard</h1>
+          <p className="errorText">
+            Unable to reach API at {apiBaseUrl}: {error}
+          </p>
+        </section>
+      </main>
+    );
+  }
+
+  return <OperatorConsole apiBaseUrl={apiBaseUrl} environments={environments} />;
 }

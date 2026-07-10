@@ -23,6 +23,9 @@ importers:
       '@config-drift-guard/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@config-drift-guard/drift-engine':
+        specifier: workspace:*
+        version: link:../../packages/drift-engine
       '@fastify/cors':
         specifier: ^11.0.1
         version: 11.3.0
@@ -35,6 +38,9 @@ importers:
       fastify:
         specifier: ^5.4.0
         version: 5.10.0
+      zod:
+        specifier: ^4.0.15
+        version: 4.4.3
     devDependencies:
       '@types/better-sqlite3':
         specifier: ^7.6.13
