@@ -42,7 +42,7 @@ describe("API health", () => {
     const approveResponse = await app.inject({
       method: "POST",
       url: `/api/runs/${created.run.id}/approve`,
-      payload: { actor: "local-operator", comment: "Apply generated plan" },
+      payload: { comment: "Apply generated plan" },
     });
 
     expect(approveResponse.statusCode).toBe(202);
@@ -102,7 +102,7 @@ describe("API health", () => {
     const approveResponse = await app.inject({
       method: "POST",
       url: `/api/runs/${created.run.id}/approve`,
-      payload: { actor: "local-operator", comment: "Apply generated documentation table" },
+      payload: { comment: "Apply generated documentation table" },
     });
 
     expect(approveResponse.statusCode).toBe(202);
@@ -144,7 +144,7 @@ describe("API health", () => {
     await app.inject({
       method: "POST",
       url: `/api/runs/${created.run.id}/approve`,
-      payload: { actor: "local-operator" },
+      payload: {},
     });
     await expect
       .poll(async () => {
@@ -237,7 +237,7 @@ describe("API health", () => {
     const response = await app.inject({
       method: "POST",
       url: `/api/runs/${created.run.id}/approve`,
-      payload: { actor: "local-operator", operations: [{ path: "/image", value: "evil:v1" }] },
+      payload: { operations: [{ path: "/image", value: "evil:v1" }] },
     });
 
     expect(response.statusCode).toBe(400);
@@ -266,17 +266,17 @@ describe("API health", () => {
     const rejectResponse = await app.inject({
       method: "POST",
       url: `/api/runs/${created.run.id}/reject`,
-      payload: { actor: "local-operator" },
+      payload: {},
     });
     const repeatRejectResponse = await app.inject({
       method: "POST",
       url: `/api/runs/${created.run.id}/reject`,
-      payload: { actor: "local-operator" },
+      payload: {},
     });
     const approveResponse = await app.inject({
       method: "POST",
       url: `/api/runs/${created.run.id}/approve`,
-      payload: { actor: "local-operator" },
+      payload: {},
     });
 
     expect(rejectResponse.statusCode).toBe(200);

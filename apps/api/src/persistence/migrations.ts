@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS remediation_plans (
   run_id TEXT NOT NULL UNIQUE REFERENCES runs(id),
   canonical_digest TEXT NOT NULL,
   expected_observed_digest TEXT NOT NULL,
+  target_digest TEXT NOT NULL,
   target TEXT NOT NULL,
   engine_version TEXT NOT NULL,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP

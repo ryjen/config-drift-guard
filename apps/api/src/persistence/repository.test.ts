@@ -54,6 +54,7 @@ describe("PersistenceRepository", () => {
       runId: run.id,
       canonicalDigest: "sha256:canonical",
       expectedObservedDigest: "sha256:observed",
+      targetDigest: "sha256:target",
       target: {
         resources: [
           {

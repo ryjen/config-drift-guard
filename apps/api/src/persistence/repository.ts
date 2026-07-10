@@ -196,6 +196,21 @@ export class PersistenceRepository {
     return row === undefined ? null : parseEnvironment(row);
   }
 
+  hasActiveRun(environmentId: string): boolean {
+    const [row] = this.db
+      .select({ id: runs.id })
+      .from(runs)
+      .where(
+        and(
+          eq(runs.environmentId, environmentId),
+          inArray(runs.status, ["queued", "running", "awaiting_approval"]),
+        ),
+      )
+      .limit(1)
+      .all();
+    return row !== undefined;
+  }
+
   createQueuedRun(environmentId: string): Run {
     const timestamp = nowIso();
     const run = {
@@ -436,6 +451,133 @@ export class PersistenceRepository {
     }
 
     return saved;
+  }
+
+  recordDecisionAndApprove(input: Omit<Decision, "id" | "createdAt">): {
+    decision: Decision;
+    run: Run;
+  } {
+    if (input.action !== "approved") {
+      throw new Error("recordDecisionAndApprove requires action 'approved'");
+    }
+
+    let decision: Decision | undefined;
+
+    this.db.transaction(() => {
+      const run = this.getRun(input.runId);
+      if (run.status !== "awaiting_approval") {
+        throw new Error("run_not_awaiting_approval");
+      }
+
+      const existingDecision = this.db
+        .select()
+        .from(decisions)
+        .where(eq(decisions.runId, input.runId))
+        .limit(1)
+        .all()[0];
+      if (existingDecision !== undefined) {
+        throw new Error("decision_already_exists");
+      }
+
+      const now = nowIso();
+      const decisionRecord = {
+        ...input,
+        id: `decision_${randomUUID()}`,
+        createdAt: now,
+      };
+      decisionSchema.parse(decisionRecord);
+
+      this.db.insert(decisions).values(decisionRecord).run();
+      this.appendEvent(input.runId, "decision.approved", { actor: input.actor });
+
+      this.db
+        .update(runs)
+        .set({
+          status: "running",
+          currentStep: null,
+          error: null,
+          version: run.version + 1,
+          updatedAt: now,
+        })
+        .where(eq(runs.id, input.runId))
+        .run();
+      this.appendEvent(input.runId, "run.updated", { status: "running", currentStep: null });
+
+      decision = decisionRecord;
+    });
+
+    if (decision === undefined) {
+      throw new Error("decision_not_saved");
+    }
+
+    return { decision, run: this.getRun(input.runId) };
+  }
+
+  recordDecisionAndReject(input: Omit<Decision, "id" | "createdAt">): {
+    decision: Decision;
+    run: Run;
+  } {
+    if (input.action !== "rejected") {
+      throw new Error("recordDecisionAndReject requires action 'rejected'");
+    }
+
+    let decision: Decision | undefined;
+
+    this.db.transaction(() => {
+      const run = this.getRun(input.runId);
+      if (run.status !== "awaiting_approval") {
+        throw new Error("run_not_awaiting_approval");
+      }
+
+      const existingDecision = this.db
+        .select()
+        .from(decisions)
+        .where(eq(decisions.runId, input.runId))
+        .limit(1)
+        .all()[0];
+      if (existingDecision !== undefined) {
+        throw new Error("decision_already_exists");
+      }
+
+      const now = nowIso();
+      const decisionRecord = {
+        ...input,
+        id: `decision_${randomUUID()}`,
+        createdAt: now,
+      };
+      decisionSchema.parse(decisionRecord);
+
+      this.db.insert(decisions).values(decisionRecord).run();
+      this.appendEvent(input.runId, "decision.rejected", { actor: input.actor });
+
+      this.db
+        .update(steps)
+        .set({ status: "skipped", message: "Skipped after rejection", completedAt: now })
+        .where(and(eq(steps.runId, input.runId), eq(steps.status, "pending")))
+        .run();
+      this.appendEvent(input.runId, "steps.pending_skipped", { runId: input.runId });
+
+      this.db
+        .update(runs)
+        .set({
+          status: "rejected",
+          currentStep: null,
+          error: null,
+          version: run.version + 1,
+          updatedAt: now,
+        })
+        .where(eq(runs.id, input.runId))
+        .run();
+      this.appendEvent(input.runId, "run.updated", { status: "rejected", currentStep: null });
+
+      decision = decisionRecord;
+    });
+
+    if (decision === undefined) {
+      throw new Error("decision_not_saved");
+    }
+
+    return { decision, run: this.getRun(input.runId) };
   }
 
   appendEvent(runId: string, eventType: string, payload: JsonValue): Event {

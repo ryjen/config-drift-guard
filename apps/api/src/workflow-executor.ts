@@ -3,6 +3,7 @@ import {
   buildCompleteTargetState,
   compareNormalizedResourceStates,
   type DriftFinding,
+  digestJson,
   digestNormalizedResourceState,
 } from "@config-drift-guard/drift-engine";
 import { ZodError } from "zod";
@@ -23,6 +24,7 @@ interface WorkflowRepository extends RunStateStore {
     readonly runId: string;
     readonly canonicalDigest: string;
     readonly expectedObservedDigest: string;
+    readonly targetDigest: string;
     readonly target: JsonValue;
     readonly engineVersion: string;
   }): unknown;
@@ -135,6 +137,7 @@ export class WorkflowExecutor {
         runId,
         canonicalDigest,
         expectedObservedDigest: target.expectedObservedDigest,
+        targetDigest: target.targetDigest,
         target: target.target,
         engineVersion: target.engineVersion,
       });
@@ -182,6 +185,12 @@ export class WorkflowExecutor {
           currentObservedDigest,
         );
       }
+
+      const currentTargetDigest = digestJson(snapshot.plan.target as JsonValue);
+      if (currentTargetDigest !== snapshot.plan.targetDigest) {
+        throw new Error("target_integrity_violation");
+      }
+
       completeStep(
         this.repository,
         runId,

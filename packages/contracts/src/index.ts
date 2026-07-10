@@ -136,6 +136,7 @@ export const remediationPlanSchema = z.object({
   runId: z.string().min(1),
   canonicalDigest: z.string().min(1),
   expectedObservedDigest: z.string().min(1),
+  targetDigest: z.string().min(1),
   target: jsonValueSchema,
   engineVersion: z.string().min(1),
   createdAt: z.string().datetime(),

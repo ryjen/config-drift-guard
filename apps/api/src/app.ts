@@ -13,7 +13,6 @@ import { DocumentationAdapter } from "./adapters/documentation.js";
 import { ServiceConfigAdapter } from "./adapters/service-config.js";
 import { createDatabase, type DatabaseHandle } from "./persistence/database.js";
 import { PersistenceRepository } from "./persistence/repository.js";
-import { approveRun, rejectRun } from "./state-machine.js";
 import { WorkflowExecutor } from "./workflow-executor.js";
 
 const LOCAL_ORIGINS = new Set(["localhost", "127.0.0.1", "::1"]);
@@ -22,7 +21,6 @@ const PHASE_DELAY_MS = Number.parseInt(process.env.PHASE_DELAY_MS ?? "0", 10) ||
 
 const decisionRequestSchema = z
   .object({
-    actor: z.string().min(1).default("local-operator"),
     comment: z.string().trim().min(1).nullable().optional(),
   })
   .strict();
@@ -106,6 +104,11 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         return { error: "environment_not_found" };
       }
 
+      if (repository.hasActiveRun(environment.id)) {
+        reply.code(409);
+        return { error: "active_run_exists" };
+      }
+
       const run = repository.createQueuedRun(environment.id);
       const snapshot = repository.getRunSnapshot(run.id);
       const executor = new WorkflowExecutor(
@@ -166,13 +169,19 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       return { error: "run_not_awaiting_approval" };
     }
 
-    repository.recordDecision({
-      runId: snapshot.run.id,
-      action: "approved",
-      actor: parsed.data.actor,
-      comment: parsed.data.comment ?? null,
-    });
-    approveRun(repository, snapshot.run.id);
+    try {
+      repository.recordDecisionAndApprove({
+        runId: snapshot.run.id,
+        action: "approved",
+        actor: "local-operator",
+        comment: parsed.data.comment ?? null,
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message === "decision_already_exists") {
+        return repository.getRunSnapshot(snapshot.run.id);
+      }
+      throw error;
+    }
     const environment = repository.getEnvironment(snapshot.run.environmentId);
     if (environment === null) {
       reply.code(404);
@@ -219,13 +228,19 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       return { error: "run_not_awaiting_approval" };
     }
 
-    repository.recordDecision({
-      runId: snapshot.run.id,
-      action: "rejected",
-      actor: parsed.data.actor,
-      comment: parsed.data.comment ?? null,
-    });
-    rejectRun(repository, snapshot.run.id);
+    try {
+      repository.recordDecisionAndReject({
+        runId: snapshot.run.id,
+        action: "rejected",
+        actor: "local-operator",
+        comment: parsed.data.comment ?? null,
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message === "decision_already_exists") {
+        return repository.getRunSnapshot(snapshot.run.id);
+      }
+      throw error;
+    }
     return repository.getRunSnapshot(snapshot.run.id);
   });
 

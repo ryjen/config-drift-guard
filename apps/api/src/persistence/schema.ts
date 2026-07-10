@@ -70,6 +70,7 @@ export const remediationPlans = sqliteTable("remediation_plans", {
     .references(() => runs.id),
   canonicalDigest: text("canonical_digest").notNull(),
   expectedObservedDigest: text("expected_observed_digest").notNull(),
+  targetDigest: text("target_digest").notNull(),
   target: text("target", { mode: "json" }).notNull(),
   engineVersion: text("engine_version").notNull(),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),

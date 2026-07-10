@@ -21,7 +21,7 @@ const desiredServiceSchema = z.object({
 });
 
 const canonicalSchema = z.object({
-  resources: z.array(desiredServiceSchema).min(1),
+  resources: z.array(desiredServiceSchema).length(1),
 });
 
 const observedServiceSchema = z

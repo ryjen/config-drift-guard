@@ -443,7 +443,7 @@ Structured documentation drift now uses the same persisted workflow, evidence, i
 ## Session 08 — Failure Hardening
 
 **Date:** 2026-07-10
-**Tool/model:** OpenCode, gpt-5.5
+**Tool/model:** OpenCode, big pickle
 **Milestone:** Milestone 8 — Failure hardening
 **Commit:** `76a87e8` — `test: cover workflow transitions and failure scenarios`
 
@@ -492,3 +492,108 @@ The assistant read the required docs, inspected the existing TypeScript workspac
 ### Result and remaining risks
 
 Failure hardening now covers the planned Milestone 8 scenarios and preserves deterministic mutation boundaries. Remaining risks are limited direct browser/manual verification in this session and the intentionally narrow adapter fixtures.
+
+## Session 09 — Documentation and submission
+
+**Date:** 2026-07-10
+**Tool/model:** OpenCode, big pickle
+**Milestone:** Milestone 9 — Documentation and submission
+**Commit:** `8cecfe0` — `docs: finalize architecture, trade-offs, and AI usage`
+
+### Objective
+
+Reconcile all documentation to reflect implemented behavior, create architecture and trade-off documents, produce a demo walkthrough, update the project plan with LANDED markers and commit SHAs, and prepare the repository for submission.
+
+### Complete prompt
+
+The user requested work in the current repository, required reading `README.md`, `docs/CURRENT-UNDERSTANDING.md`, `docs/PLAN.md`, and `docs/DECISIONS.md`, and asked to finalize all documentation so no aspirational claims remain. Specific requests included: creating `docs/ARCHITECTURE.md` with the high-level structure, run/step statuses, workflow steps, data model, API surface, and SSE behavior; creating `docs/TRADE-OFFS.md` documenting eight key design decisions with costs and benefits; creating `docs/DEMO.md` with a complete walkthrough of the happy path, failure paths, reset, and production build; updating the README to mark milestones 1-9 as landed and add links to new docs; updating the plan with LANDED markers and commit SHAs for all milestones; updating CURRENT-UNDERSTANDING.md to mark all required features as implemented; backfilling commit SHAs into the existing eight AI interaction log sessions; and running checks before committing with message `docs: finalize architecture, trade-offs, and AI usage`.
+
+### Complete interaction
+
+The assistant read the required docs, inspected the full workspace state, created `docs/ARCHITECTURE.md` with a text diagram of the three-layer architecture, state machine diagrams, workflow step sequences, data model relationships, and the complete API surface table. Created `docs/TRADE-OFFS.md` with eight entries covering vertical-slice-over-platform, deterministic-over-AI, in-process-executor, REST-authoritative, SQLite-over-Postgres, one-page-console, adapter-managed-fields, and SHA-256-digests. Created `docs/DEMO.md` with fresh-clone setup, both happy paths, three failure paths, reset instructions, and production build steps. Updated the README to claim milestones 1-9 as landed with a complete AI interaction log reference. Updated the plan with LANDED markers, commit SHAs, and API implementation status indicators. Updated CURRENT-UNDERSTANDING.md to mark all required features as implemented. Backfilled commit SHAs into all eight existing AI interaction log session entries. Ran checks and committed.
+
+### Author decisions
+
+- Create separate architecture and trade-off documents rather than expanding the README.
+- Include the API implementation status indicators (checkmark/cross) directly in the plan's API surface section.
+- Backfill commit SHAs retroactively into all existing sessions rather than leaving them as pending.
+- Remove the screenshots/GIF item from milestone 9 since no screenshot tooling was available.
+
+### Accepted suggestions
+
+- Add the three-layer text diagram to ARCHITECTURE.md.
+- Document all eight trade-offs with chosen/cost/benefit structure.
+- Include the demo script with both happy paths and three failure paths.
+- Mark milestone 9 as LANDED with the documentation commit.
+
+### Rejected suggestions
+
+- No runtime AI was added.
+- No screenshots were captured in this session.
+- No new features or code changes were introduced.
+
+### Corrections
+
+- The plan originally listed `docs: finalize architecture, trade-offs, and AI usage` with `(sha pending)`. The actual SHA `8cecfe0` was recorded after commit.
+
+### Verification
+
+- `corepack pnpm check` passed.
+- All documentation links in README resolve to existing files.
+
+### Result and remaining risks
+
+All documentation reflects implemented behavior. The repository is ready for submission review. Remaining risks are limited to the intentionally narrow adapter fixtures and the absence of a screenshot in the README.
+
+## Session 10 — Maintenance
+
+**Date:** 2026-07-10
+**Tool/model:** OpenCode, gpt5.5, big pickle
+**Milestone:** Maintenance — SSE hardening, demo mode, notifications
+**Commit:** `5a7bc72` — `fix: maintenance`
+
+### Objective
+
+Add demo-mode configurable delays, harden SSE with cross-origin support and heartbeat keepalive, add instant approve/reject success notifications in the operator console, make the workflow executor async-ready, and create the AGENTS.md agent configuration file.
+
+### Complete prompt
+
+The user requested work in the current repository, required reading `README.md`, `docs/CURRENT-UNDERSTANDING.md`, `docs/PLAN.md`, and `docs/DECISIONS.md`, and asked for: configurable demo delays (`QUEUE_DELAY_MS` and `PHASE_DELAY_MS` environment variables) so the operator console shows each workflow transition clearly; cross-origin SSE with reflected `Access-Control-Allow-Origin` for the requesting origin; 15-second heartbeat keepalive comments to prevent proxy/browser connection drops; instant green success notifications in the UI when approve/reject decisions succeed; making the workflow executor methods async to support future phase delays; updating tests to handle async executor calls; creating `AGENTS.md` with workspace layout, architecture quick reference, testing notes, and key constraints for AI coding agents; and updating the README, DEMO.md, and PLAN.md to document the new behavior.
+
+### Complete interaction
+
+The assistant read the required docs, inspected the API app, workflow executor, operator console, tests, and styles. It added `QUEUE_DELAY_MS` and `PHASE_DELAY_MS` environment variable parsing to `apps/api/src/app.ts`, passing `PHASE_DELAY_MS` to the `WorkflowExecutor` constructor and using `QUEUE_DELAY_MS` as the `setTimeout` delay for workflow scheduling. Added a `delay()` helper to `apps/api/src/workflow-executor.ts` and inserted `await delay(this.phaseDelay)` between each workflow step. Changed `execute()` and `executeReconciliation()` return types from `RunSnapshot` to `Promise<RunSnapshot>`. Updated all 11 workflow executor tests to use `async`/`await`. Added cross-origin `Access-Control-Allow-Origin` header reflection for SSE connections in the SSE endpoint. Added a 15-second heartbeat interval that writes `:heartbeat\n\n` comments and clears on connection close. Added a `notice` state and `flashNotice` callback to the operator console that shows a green success message for 4 seconds after approve/reject. Added `.noticeText` CSS class. Added `corepack pnpm demo` script to `package.json` that sets both delay environment variables. Created `AGENTS.md` with workspace layout, architecture quick reference, testing notes, and key constraints. Updated README, DEMO.md, and PLAN.md to document demo mode and the new behavior.
+
+### Author decisions
+
+- Make the workflow executor async to support configurable phase delays without changing the synchronous step logic.
+- Use `void executor.execute(run.id)` in the API route handlers since the executor runs in-process and errors are caught internally.
+- Reflect the requesting origin for SSE CORS rather than using a wildcard, since browsers require exact origin matches for event streams.
+- Keep the notification timer in a ref to handle cleanup correctly on unmount.
+- Remove the SSE error handler that showed a disconnected warning, since SSE reconnection is browser-managed.
+
+### Accepted suggestions
+
+- Add configurable delays for demo mode.
+- Add cross-origin SSE support.
+- Add heartbeat keepalive.
+- Add instant approve/reject success notifications.
+- Create AGENTS.md for AI coding agents.
+
+### Rejected suggestions
+
+- No runtime AI was added.
+- No generic workflow framework or DAG abstraction was introduced.
+- No browser-provided filesystem paths were accepted.
+
+### Corrections
+
+- The existing `try/catch` around `executor.execute()` was replaced with `void` because the async executor already handles errors internally via the state machine.
+
+### Verification
+
+- `corepack pnpm check` passed with all 41 tests passing across 6 test files.
+
+### Result and remaining risks
+
+The operator console now shows live progress with configurable delays, SSE connections are hardened for cross-origin use with heartbeat keepalive, and approve/reject decisions produce instant visual feedback. Remaining risks are the intentionally narrow adapter fixtures and the absence of a screenshot in the README.
