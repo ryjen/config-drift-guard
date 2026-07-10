@@ -1,5 +1,6 @@
 import {
   type Environment,
+  type Event,
   type HealthResponse,
   healthResponse,
   type RunSnapshot,
@@ -66,7 +67,14 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       }
 
       const run = repository.createQueuedRun(environment.id);
-      const snapshot = executor.execute(run.id);
+      const snapshot = repository.getRunSnapshot(run.id);
+      setTimeout(() => {
+        try {
+          executor.execute(run.id);
+        } catch (error) {
+          request.log.error({ error, runId: run.id }, "workflow execution failed");
+        }
+      }, 0);
       reply.code(201);
       return snapshot;
     },
@@ -88,5 +96,71 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     },
   );
 
+  app.get<{ Params: { runId: string } }>("/api/runs/:runId/events", async (request, reply) => {
+    let lastSentEventId = parseLastEventId(request.headers["last-event-id"]);
+
+    try {
+      repository.getRun(request.params.runId);
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith("run_not_found:")) {
+        reply.code(404);
+        return { error: "run_not_found" };
+      }
+
+      throw error;
+    }
+
+    reply.hijack();
+    reply.raw.writeHead(200, {
+      "Cache-Control": "no-cache, no-transform",
+      Connection: "keep-alive",
+      "Content-Type": "text/event-stream",
+      "X-Accel-Buffering": "no",
+    });
+
+    let unsubscribe = (): void => undefined;
+    const writeEvent = (event: Event): void => {
+      if (event.id <= lastSentEventId || reply.raw.destroyed) {
+        return;
+      }
+
+      lastSentEventId = event.id;
+      try {
+        reply.raw.write(formatRunChangeEvent(event, repository.getRun(event.runId).version));
+      } catch {
+        unsubscribe();
+        reply.raw.destroy();
+      }
+    };
+
+    unsubscribe = repository.subscribeRunEvents(request.params.runId, writeEvent);
+    request.raw.on("close", unsubscribe);
+
+    for (const event of repository.listRunEventsAfter(request.params.runId, lastSentEventId)) {
+      writeEvent(event);
+    }
+  });
+
   return app;
+}
+
+function parseLastEventId(value: string | string[] | undefined): number {
+  const rawValue = Array.isArray(value) ? value[0] : value;
+  if (rawValue === undefined) {
+    return 0;
+  }
+
+  const parsed = Number.parseInt(rawValue, 10);
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : 0;
+}
+
+function formatRunChangeEvent(event: Event, version: number): string {
+  const data = JSON.stringify({
+    runId: event.runId,
+    version,
+    eventId: event.id,
+    eventType: event.eventType,
+  });
+
+  return `id: ${event.id}\nevent: run-change\ndata: ${data}\n\n`;
 }

@@ -45,8 +45,17 @@ describe("API health", () => {
 
     expect(createResponse.statusCode).toBe(201);
     const created = createResponse.json();
-    expect(created.run.status).toBe("awaiting_approval");
-    expect(created.findings).toHaveLength(3);
+    expect(created.run.status).toBe("queued");
+    expect(created.events.map((event: { eventType: string }) => event.eventType)).toEqual([
+      "run.queued",
+    ]);
+
+    await expect
+      .poll(async () => {
+        const response = await app.inject({ method: "GET", url: `/api/runs/${created.run.id}` });
+        return response.json().run.status;
+      })
+      .toBe("awaiting_approval");
 
     const readResponse = await app.inject({ method: "GET", url: `/api/runs/${created.run.id}` });
 
@@ -59,6 +68,35 @@ describe("API health", () => {
         { path: "/environment/LOG_LEVEL", severity: "warning" },
       ],
     });
+
+    await app.close();
+    database.close();
+  });
+
+  it("persists run events for replay", async () => {
+    const database = createDatabase(":memory:");
+    const app = await buildApp({ database });
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/api/environments/env_service_config/runs",
+    });
+    const created = createResponse.json();
+
+    await expect
+      .poll(async () => {
+        const response = await app.inject({ method: "GET", url: `/api/runs/${created.run.id}` });
+        return response.json().run.status;
+      })
+      .toBe("awaiting_approval");
+
+    const snapshotResponse = await app.inject({
+      method: "GET",
+      url: `/api/runs/${created.run.id}`,
+    });
+    const snapshot = snapshotResponse.json();
+
+    expect(snapshot.events.length).toBeGreaterThan(1);
+    expect(snapshot.events.at(0).eventType).toBe("run.queued");
 
     await app.close();
     database.close();

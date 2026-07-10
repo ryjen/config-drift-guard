@@ -22,7 +22,7 @@ import {
   stepSchema,
   type WorkflowStepKey,
 } from "@config-drift-guard/contracts";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, gt } from "drizzle-orm";
 import type { AppDatabase } from "./database.js";
 import {
   decisions,
@@ -33,6 +33,8 @@ import {
   runs,
   steps,
 } from "./schema.js";
+
+type RunEventListener = (event: Event) => void;
 
 export const primaryWorkflowSteps: readonly WorkflowStepKey[] = [
   "validate_canonical_state",
@@ -78,6 +80,8 @@ function parseEvent(row: typeof events.$inferSelect): Event {
 }
 
 export class PersistenceRepository {
+  private readonly eventListeners = new Map<string, Set<RunEventListener>>();
+
   constructor(private readonly db: AppDatabase) {}
 
   seedServiceConfigEnvironment(): Environment {
@@ -282,6 +286,33 @@ export class PersistenceRepository {
     return runSnapshotSchema.parse(snapshot);
   }
 
+  listRunEventsAfter(runId: string, afterEventId: number): Event[] {
+    this.getRun(runId);
+    return this.db
+      .select()
+      .from(events)
+      .where(and(eq(events.runId, runId), gt(events.id, afterEventId)))
+      .orderBy(asc(events.id))
+      .all()
+      .map(parseEvent);
+  }
+
+  subscribeRunEvents(runId: string, listener: RunEventListener): () => void {
+    let listeners = this.eventListeners.get(runId);
+    if (listeners === undefined) {
+      listeners = new Set<RunEventListener>();
+      this.eventListeners.set(runId, listeners);
+    }
+
+    listeners.add(listener);
+    return () => {
+      listeners.delete(listener);
+      if (listeners.size === 0) {
+        this.eventListeners.delete(runId);
+      }
+    };
+  }
+
   replaceFindings(runId: string, records: readonly Omit<Finding, "id" | "runId">[]): Finding[] {
     this.db.transaction(() => {
       this.db.delete(findings).where(eq(findings.runId, runId)).run();
@@ -348,6 +379,23 @@ export class PersistenceRepository {
     if (row === undefined) {
       throw new Error("event_not_saved");
     }
-    return parseEvent(row);
+    const event = parseEvent(row);
+    this.notifyRunEvent(event);
+    return event;
+  }
+
+  private notifyRunEvent(event: Event): void {
+    const listeners = this.eventListeners.get(event.runId);
+    if (listeners === undefined) {
+      return;
+    }
+
+    for (const listener of listeners) {
+      try {
+        listener(event);
+      } catch {
+        // Event stream clients must not interrupt persisted workflow transitions.
+      }
+    }
   }
 }

@@ -270,6 +270,38 @@ pre {
   color: #46556f;
 }
 
+.eventLog {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.eventLog li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid #d8e0eb;
+  border-radius: 12px;
+  background: #f8fafc;
+  padding: 10px 12px;
+}
+
+.eventLog strong {
+  overflow-wrap: anywhere;
+}
+
+.eventLog span {
+  color: #52627c;
+  font-size: 0.82rem;
+}
+
+.liveLog li {
+  border-left: 5px solid #173b7a;
+}
+
 .severity.critical,
 .severity.warning {
   justify-self: start;
@@ -298,5 +330,9 @@ pre {
 
   .widePanel {
     grid-column: span 1;
+  }
+
+  .eventLog li {
+    grid-template-columns: 1fr;
   }
 }

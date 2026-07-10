@@ -10,33 +10,53 @@ interface OperatorConsoleProps {
   readonly environments: readonly Environment[];
 }
 
+interface LiveNotification {
+  readonly eventId: number;
+  readonly eventType: string;
+  readonly runId: string;
+  readonly version: number;
+}
+
 export function OperatorConsole({ apiBaseUrl, environments }: OperatorConsoleProps) {
   const [environmentId, setEnvironmentId] = useState(environments[0]?.id ?? "");
   const [snapshot, setSnapshot] = useState<RunSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [liveNotifications, setLiveNotifications] = useState<LiveNotification[]>([]);
   const [isPending, startTransition] = useTransition();
+  const activeRunId = snapshot?.run.id ?? null;
 
   useEffect(() => {
     const runId = window.localStorage.getItem(lastRunStorageKey);
     if (runId === null) {
       return;
     }
+    const restoredRunId = runId;
 
     async function restoreRun(): Promise<void> {
       setError(null);
-      const response = await fetch(`${apiBaseUrl}/api/runs/${runId}`, { cache: "no-store" });
-      if (!response.ok) {
-        setError(`Unable to load run ${runId}: HTTP ${response.status}`);
-        return;
-      }
-
-      const nextSnapshot = (await response.json()) as RunSnapshot;
-      setSnapshot(nextSnapshot);
-      window.localStorage.setItem(lastRunStorageKey, nextSnapshot.run.id);
+      await refreshRun(apiBaseUrl, restoredRunId, setSnapshot, setError);
     }
 
     void restoreRun();
   }, [apiBaseUrl]);
+
+  useEffect(() => {
+    if (activeRunId === null) {
+      return;
+    }
+
+    const eventSource = new EventSource(`${apiBaseUrl}/api/runs/${activeRunId}/events`);
+    eventSource.addEventListener("run-change", (message) => {
+      const notification = JSON.parse(message.data) as LiveNotification;
+      setLiveNotifications((current) => [notification, ...current].slice(0, 8));
+      void refreshRun(apiBaseUrl, notification.runId, setSnapshot, setError);
+    });
+    eventSource.onerror = () => {
+      setError("Live update stream disconnected; the persisted run snapshot remains available.");
+    };
+
+    return () => eventSource.close();
+  }, [activeRunId, apiBaseUrl]);
 
   const selectedEnvironment = environments.find((environment) => environment.id === environmentId);
 
@@ -54,6 +74,7 @@ export function OperatorConsole({ apiBaseUrl, environments }: OperatorConsolePro
 
       const nextSnapshot = (await response.json()) as RunSnapshot;
       setSnapshot(nextSnapshot);
+      setLiveNotifications([]);
       window.localStorage.setItem(lastRunStorageKey, nextSnapshot.run.id);
     });
   }
@@ -134,12 +155,38 @@ export function OperatorConsole({ apiBaseUrl, environments }: OperatorConsolePro
         </section>
       </section>
 
-      {snapshot !== null ? <RunDetails snapshot={snapshot} /> : null}
+      {snapshot !== null ? (
+        <RunDetails liveNotifications={liveNotifications} snapshot={snapshot} />
+      ) : null}
     </main>
   );
 }
 
-function RunDetails({ snapshot }: { readonly snapshot: RunSnapshot }) {
+async function refreshRun(
+  apiBaseUrl: string,
+  runId: string,
+  setSnapshot: (snapshot: RunSnapshot) => void,
+  setError: (message: string | null) => void,
+): Promise<void> {
+  const response = await fetch(`${apiBaseUrl}/api/runs/${runId}`, { cache: "no-store" });
+  if (!response.ok) {
+    setError(`Unable to load run ${runId}: HTTP ${response.status}`);
+    return;
+  }
+
+  const nextSnapshot = (await response.json()) as RunSnapshot;
+  setSnapshot(nextSnapshot);
+  setError(null);
+  window.localStorage.setItem(lastRunStorageKey, nextSnapshot.run.id);
+}
+
+function RunDetails({
+  liveNotifications,
+  snapshot,
+}: {
+  readonly liveNotifications: readonly LiveNotification[];
+  readonly snapshot: RunSnapshot;
+}) {
   return (
     <section className="detailsGrid">
       <article className="panel widePanel">
@@ -193,6 +240,40 @@ function RunDetails({ snapshot }: { readonly snapshot: RunSnapshot }) {
           <p className="emptyState">No plan generated.</p>
         ) : (
           <pre>{JSON.stringify(snapshot.plan, null, 2)}</pre>
+        )}
+      </article>
+
+      <article className="panel widePanel">
+        <h2>Event log</h2>
+        {snapshot.events.length === 0 ? (
+          <p className="emptyState">No events persisted.</p>
+        ) : (
+          <ol className="eventLog">
+            {snapshot.events.map((event) => (
+              <li key={event.id}>
+                <code>#{event.id}</code>
+                <strong>{event.eventType}</strong>
+                <span>{new Date(event.createdAt).toLocaleTimeString()}</span>
+              </li>
+            ))}
+          </ol>
+        )}
+      </article>
+
+      <article className="panel widePanel">
+        <h2>Live workflow timeline</h2>
+        {liveNotifications.length === 0 ? (
+          <p className="emptyState">Waiting for compact SSE notifications.</p>
+        ) : (
+          <ol className="eventLog liveLog">
+            {liveNotifications.map((event) => (
+              <li key={event.eventId}>
+                <code>#{event.eventId}</code>
+                <strong>{event.eventType}</strong>
+                <span>run version {event.version}</span>
+              </li>
+            ))}
+          </ol>
         )}
       </article>
     </section>

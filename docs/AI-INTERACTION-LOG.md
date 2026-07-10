@@ -281,3 +281,54 @@ The assistant read the required docs, inspected the existing workspace, added a 
 ### Result and remaining risks
 
 The evaluator can start a persisted service-config drift scan from the browser, see the final timeline and findings, and refresh to refetch the saved run snapshot. Remaining product risks are SSE notifications, approval/rejection APIs, stale-plan validation, atomic reconciliation, post-write verification, additional failure hardening, and any secondary documentation-drift adapter.
+
+## Session 05 — SSE Workflow Progress
+
+**Date:** 2026-07-10
+**Tool/model:** OpenCode, gpt-5.5
+**Milestone:** Milestone 5 — Live progress
+**Commit:** Pending at time of entry; expected message `feat: stream workflow progress with server-sent events`.
+
+### Objective
+
+Add persisted event replay and minimal server-sent events while keeping REST run snapshots authoritative and avoiding any React-side state-machine duplication.
+
+### Complete prompt
+
+The user requested work in the current repository, required reading `README.md`, `docs/CURRENT-UNDERSTANDING.md`, `docs/PLAN.md`, and `docs/DECISIONS.md`, and asked for strict TypeScript, deterministic drift detection, pure drift-engine boundaries, one explicit state-machine module, one explicit workflow executor, REST snapshots as authoritative, SSE only as compact refetch notifications, no browser filesystem paths, adapter-managed fields only, server-owned immutable plans, no runtime AI, documentation updates for divergence, checks before committing, and commit message `feat: stream workflow progress with server-sent events`. The specific milestone requested persisted events, minimal SSE, UI snapshot refetching, `Last-Event-ID` replay, listener cleanup on disconnect, an event log, and a live workflow timeline.
+
+### Complete interaction
+
+The assistant read the required docs, inspected API routes, repository event persistence, the workflow executor, tests, and the operator console, then added repository event replay/listener support, added a compact `/api/runs/:runId/events` SSE endpoint, changed start-run to return the created snapshot before scheduling the existing executor in-process, updated the UI to open an EventSource and refetch the authoritative REST snapshot on notifications, added event-log/live-notification rendering, updated tests, and reconciled README status.
+
+### Author decisions
+
+- Reuse the existing persisted `events` table instead of adding a separate stream store.
+- Keep SSE payloads compact: run ID, event ID, event type, and current run version.
+- Keep React passive: EventSource notifications trigger REST refetches and are displayed for observability, but the snapshot drives all workflow state.
+- Use in-process scheduling for the existing explicit executor rather than introducing workers, queues, DAGs, or a generic workflow framework.
+
+### Accepted suggestions
+
+- Add `Last-Event-ID` replay by querying persisted events after the provided monotonic event ID.
+- Clean up run event listeners when the SSE socket closes.
+- Guard SSE writes so a disconnected client cannot fail workflow execution.
+- Show both the persisted event log and compact live notifications in the one-page console.
+
+### Rejected suggestions
+
+- No runtime AI was added.
+- No approval/rejection or reconciliation behavior was added in this milestone.
+- No React-side state transitions were added; REST remains authoritative.
+
+### Corrections
+
+- Fastify injection is not ideal for held-open SSE response testing, so replay/listener behavior is covered through repository tests and endpoint behavior is verified through type/build checks.
+
+### Verification
+
+- Full repository checks are run before committing.
+
+### Result and remaining risks
+
+The UI can subscribe to compact run-change notifications, reconnect with browser-managed `Last-Event-ID`, and refetch authoritative snapshots. Remaining product risks are approval/rejection APIs, stale-plan validation, atomic reconciliation, post-write verification, failure hardening, and direct manual browser verification of the SSE stream.

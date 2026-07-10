@@ -85,6 +85,31 @@ describe("PersistenceRepository", () => {
       "plan.created",
       "decision.approved",
     ]);
+    const firstEvent = snapshot.events[0];
+    expect(firstEvent).toBeDefined();
+    expect(
+      repository.listRunEventsAfter(run.id, firstEvent?.id ?? 0).map((event) => event.eventType),
+    ).toEqual(["findings.replaced", "plan.created", "decision.approved"]);
+
+    handle.close();
+  });
+
+  it("notifies and cleans up run event listeners", () => {
+    const handle = createDatabase(":memory:");
+    const repository = new PersistenceRepository(handle.db);
+    const environment = repository.seedServiceConfigEnvironment();
+    const run = repository.createQueuedRun(environment.id);
+    const received: string[] = [];
+
+    const unsubscribe = repository.subscribeRunEvents(run.id, (event) => {
+      received.push(event.eventType);
+    });
+
+    repository.appendEvent(run.id, "test.connected", { status: "ok" });
+    unsubscribe();
+    repository.appendEvent(run.id, "test.disconnected", { status: "ok" });
+
+    expect(received).toEqual(["test.connected"]);
 
     handle.close();
   });
