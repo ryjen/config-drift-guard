@@ -4,6 +4,8 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { buildApp } from "./app.js";
 import { createDatabase } from "./persistence/database.js";
+import { PersistenceRepository } from "./persistence/repository.js";
+import { startRun, startStep } from "./state-machine.js";
 
 describe("API health", () => {
   it("returns a deterministic health payload", async () => {
@@ -117,6 +119,100 @@ describe("API health", () => {
     ).json();
     expect(snapshot.run.findingCount).toBe(0);
     expect(snapshot.findings).toEqual([]);
+
+    await app.close();
+    database.close();
+  });
+
+  it("resets a server-controlled scenario without accepting browser file paths", async () => {
+    const database = createDatabase(":memory:");
+    const observedPath = createObservedPath();
+    const app = await buildApp({ database, serviceConfigObservedPath: observedPath });
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/api/environments/env_service_config/runs",
+    });
+    const created = createResponse.json();
+
+    await expect
+      .poll(async () => {
+        const response = await app.inject({ method: "GET", url: `/api/runs/${created.run.id}` });
+        return response.json().run.status;
+      })
+      .toBe("awaiting_approval");
+
+    await app.inject({
+      method: "POST",
+      url: `/api/runs/${created.run.id}/approve`,
+      payload: { actor: "local-operator" },
+    });
+    await expect
+      .poll(async () => {
+        const response = await app.inject({ method: "GET", url: `/api/runs/${created.run.id}` });
+        return response.json().run.status;
+      })
+      .toBe("succeeded");
+
+    const unsafeResetResponse = await app.inject({
+      method: "POST",
+      url: "/api/environments/env_service_config/reset",
+      payload: { path: "/tmp/unsafe" },
+    });
+
+    expect(unsafeResetResponse.statusCode).toBe(400);
+    expect(unsafeResetResponse.json()).toEqual({ error: "invalid_reset_request" });
+
+    const resetResponse = await app.inject({
+      method: "POST",
+      url: "/api/environments/env_service_config/reset",
+      payload: {},
+    });
+
+    expect(resetResponse.statusCode).toBe(200);
+    expect(resetResponse.json()).toMatchObject({
+      status: "reset",
+      environment: { id: "env_service_config" },
+    });
+
+    const rerunResponse = await app.inject({
+      method: "POST",
+      url: "/api/environments/env_service_config/runs",
+    });
+    const rerun = rerunResponse.json();
+    await expect
+      .poll(async () => {
+        const response = await app.inject({ method: "GET", url: `/api/runs/${rerun.run.id}` });
+        return response.json().run.status;
+      })
+      .toBe("awaiting_approval");
+
+    const snapshot = (await app.inject({ method: "GET", url: `/api/runs/${rerun.run.id}` })).json();
+    expect(snapshot.findings.map((finding: { path: string }) => finding.path)).toEqual([
+      "/image",
+      "/replicas",
+      "/environment/LOG_LEVEL",
+    ]);
+
+    await app.close();
+    database.close();
+  });
+
+  it("recovers interrupted runs when the API starts", async () => {
+    const database = createDatabase(":memory:");
+    const repository = new PersistenceRepository(database.db);
+    const environment = repository.seedServiceConfigEnvironment();
+    const run = repository.createQueuedRun(environment.id);
+    startRun(repository, run.id);
+    startStep(repository, run.id, "load_observed_state");
+
+    const app = await buildApp({ database, serviceConfigObservedPath: createObservedPath() });
+    const snapshot = (await app.inject({ method: "GET", url: `/api/runs/${run.id}` })).json();
+
+    expect(snapshot.run.status).toBe("failed");
+    expect(snapshot.run.error).toMatchObject({ code: "startup_recovery" });
+    expect(
+      snapshot.steps.find((step: { key: string }) => step.key === "load_observed_state"),
+    ).toMatchObject({ status: "failed", error: { code: "startup_recovery" } });
 
     await app.close();
     database.close();

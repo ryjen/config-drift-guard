@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { startRun, startStep } from "../state-machine.js";
 import { createDatabase } from "./database.js";
 import { PersistenceRepository, workflowSteps } from "./repository.js";
 
@@ -94,13 +95,14 @@ describe("PersistenceRepository", () => {
     handle.close();
   });
 
-  it("notifies and cleans up run event listeners", () => {
+  it("replays events after a cursor and cleans up run event listeners", () => {
     const handle = createDatabase(":memory:");
     const repository = new PersistenceRepository(handle.db);
     const environment = repository.seedServiceConfigEnvironment();
     const run = repository.createQueuedRun(environment.id);
     const received: string[] = [];
 
+    const firstEvent = repository.appendEvent(run.id, "test.before_subscription", { status: "ok" });
     const unsubscribe = repository.subscribeRunEvents(run.id, (event) => {
       received.push(event.eventType);
     });
@@ -109,7 +111,37 @@ describe("PersistenceRepository", () => {
     unsubscribe();
     repository.appendEvent(run.id, "test.disconnected", { status: "ok" });
 
+    expect(
+      repository.listRunEventsAfter(run.id, firstEvent.id).map((event) => event.eventType),
+    ).toEqual(["test.connected", "test.disconnected"]);
     expect(received).toEqual(["test.connected"]);
+
+    handle.close();
+  });
+
+  it("recovers interrupted queued and running runs on startup", () => {
+    const handle = createDatabase(":memory:");
+    const repository = new PersistenceRepository(handle.db);
+    const environment = repository.seedServiceConfigEnvironment();
+    const queued = repository.createQueuedRun(environment.id);
+    const running = repository.createQueuedRun(environment.id);
+    startRun(repository, running.id);
+    startStep(repository, running.id, "calculate_drift");
+
+    const recovered = repository.recoverInterruptedRuns();
+
+    expect(recovered.map((run) => [run.id, run.status])).toEqual([
+      [queued.id, "failed"],
+      [running.id, "failed"],
+    ]);
+    expect(repository.getRun(queued.id).error).toMatchObject({ code: "startup_recovery" });
+    expect(repository.getRun(running.id).error).toMatchObject({ code: "startup_recovery" });
+    expect(
+      repository.getRunSnapshot(running.id).steps.find((step) => step.key === "calculate_drift"),
+    ).toMatchObject({ status: "failed", error: { code: "startup_recovery" } });
+    expect(
+      repository.getRunSnapshot(queued.id).steps.filter((step) => step.status === "pending"),
+    ).toEqual([]);
 
     handle.close();
   });

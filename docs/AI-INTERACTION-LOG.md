@@ -439,3 +439,56 @@ The assistant read the required docs, inspected the service adapter, workflow ex
 ### Result and remaining risks
 
 Structured documentation drift now uses the same persisted workflow, evidence, immutable plans, approval controls, stale-plan validation, atomic apply, and verification UI as service configuration drift. Remaining risks are broader failure hardening, reset/reseed convenience for repeated demos, direct manual browser verification, and only supporting the one managed Markdown table shape.
+
+## Session 08 — Failure Hardening
+
+**Date:** 2026-07-10
+**Tool/model:** OpenCode, gpt-5.5
+**Milestone:** Milestone 8 — Failure hardening
+**Commit:** Pending at time of entry; expected message `test: cover workflow transitions and failure scenarios`.
+
+### Objective
+
+Cover workflow transitions and failure scenarios for the evaluator-ready vertical slice without adding runtime AI or broad orchestration abstractions.
+
+### Complete prompt
+
+The user requested work in the current repository, required reading `README.md`, `docs/CURRENT-UNDERSTANDING.md`, `docs/PLAN.md`, and `docs/DECISIONS.md`, and asked to add and test invalid canonical state, malformed observed state, stale plan, simulated atomic-write failure, verification mismatch, interrupted-run startup recovery, every legal and illegal state transition, SSE replay and cleanup, and reset behavior. The user also required strict TypeScript, deterministic drift detection, pure drift-engine boundaries, one state-machine module, one workflow executor, REST snapshots as authoritative, SSE notifications only, no browser filesystem paths, adapter-managed fields only, immutable server-side plans, approval-gated stale-plan-safe reconciliation, no runtime AI unless the deterministic core was complete, relevant checks, and commit message `test: cover workflow transitions and failure scenarios`.
+
+### Complete interaction
+
+The assistant read the required docs, inspected the existing TypeScript workspace, workflow executor, state-machine, repository, API routes, adapters, and tests. It added startup recovery for interrupted queued/running runs, added a server-controlled reset endpoint with an explicitly empty request body, added state-machine transition tests, expanded workflow failure tests, expanded repository event replay/listener cleanup tests, added API tests for reset and startup recovery, and updated README implementation claims.
+
+### Author decisions
+
+- Keep hardening local to the existing explicit state-machine, repository, API route, and workflow tests.
+- Do not add a generic workflow framework, DAG abstraction, runtime AI, browser-authored filesystem paths, or arbitrary remediation operation input.
+- Mark interrupted queued/running runs failed on startup rather than resuming in-process work that may have lost adapter context.
+- Require reset requests to be empty so reset remains server-controlled.
+
+### Accepted suggestions
+
+- Add deterministic tests for invalid canonical state and malformed observed state before plan generation.
+- Assert stale-plan failure skips apply and preserves the changed observed state.
+- Simulate apply failure and verification mismatch through test adapters.
+- Add exhaustive legal/illegal transition coverage around the explicit state-machine functions.
+- Add persisted-event replay and listener cleanup coverage.
+
+### Rejected suggestions
+
+- No runtime AI was added.
+- No generic workflow framework, policy language, or plugin system was introduced.
+- No browser-provided path or replacement operation input was accepted for reset or reconciliation.
+
+### Corrections
+
+- The reset endpoint was tightened from ignoring extra payload fields to rejecting non-empty bodies with `invalid_reset_request`.
+- Documentation was reconciled after adding reset and startup recovery behavior.
+
+### Verification
+
+- `corepack pnpm --filter @config-drift-guard/api test` passed before the final full workspace check.
+
+### Result and remaining risks
+
+Failure hardening now covers the planned Milestone 8 scenarios and preserves deterministic mutation boundaries. Remaining risks are limited direct browser/manual verification in this session and the intentionally narrow adapter fixtures.

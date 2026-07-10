@@ -22,7 +22,7 @@ import {
   stepSchema,
   type WorkflowStepKey,
 } from "@config-drift-guard/contracts";
-import { and, asc, eq, gt } from "drizzle-orm";
+import { and, asc, eq, gt, inArray } from "drizzle-orm";
 import type { AppDatabase } from "./database.js";
 import {
   decisions,
@@ -153,6 +153,37 @@ export class PersistenceRepository {
       .orderBy(asc(environments.name))
       .all()
       .map(parseEnvironment);
+  }
+
+  recoverInterruptedRuns(): Run[] {
+    const interruptedRuns = this.db
+      .select()
+      .from(runs)
+      .where(inArray(runs.status, ["queued", "running"]))
+      .all()
+      .map(parseRun);
+
+    for (const run of interruptedRuns) {
+      const error = {
+        code: "startup_recovery",
+        message: "Run was interrupted before the API process started",
+      } satisfies ErrorEnvelope;
+
+      this.db.transaction(() => {
+        if (run.currentStep !== null) {
+          this.updateStepState(run.id, run.currentStep, {
+            status: "failed",
+            message: error.message,
+            output: null,
+            error,
+          });
+        }
+        this.skipPendingSteps(run.id);
+        this.updateRunState(run.id, { status: "failed", currentStep: null, error });
+      });
+    }
+
+    return interruptedRuns.map((run) => this.getRun(run.id));
   }
 
   getEnvironment(environmentId: string): Environment | null {

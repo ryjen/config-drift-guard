@@ -1,6 +1,7 @@
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import type { JsonValue } from "@config-drift-guard/contracts";
 import { describe, expect, it } from "vitest";
 import { DocumentationAdapter } from "./adapters/documentation.js";
 import { ServiceConfigAdapter } from "./adapters/service-config.js";
@@ -201,7 +202,124 @@ describe("WorkflowExecutor", () => {
       status: "failed",
       error: { code: "stale_remediation_plan" },
     });
+    expect(failed.steps.find((step) => step.key === "apply_reconciliation")).toMatchObject({
+      status: "skipped",
+    });
     expect(JSON.parse(readFileSync(observedPath, "utf8"))["api-service"].image).toBe("api:v3");
+
+    handle.close();
+  });
+
+  it("fails invalid canonical state before reading observed state or building a plan", () => {
+    const handle = createDatabase(":memory:");
+    const repository = new PersistenceRepository(handle.db);
+    const environment = repository.seedServiceConfigEnvironment();
+    const run = repository.createQueuedRun(environment.id);
+    const observedPath = createObservedPath();
+    const adapter = new InvalidCanonicalAdapter(observedPath);
+
+    const failed = new WorkflowExecutor(repository, adapter).execute(run.id);
+
+    expect(failed.run.status).toBe("failed");
+    expect(failed.run.error).toMatchObject({ code: "validation_failed" });
+    expect(failed.plan).toBeNull();
+    expect(failed.steps.find((step) => step.key === "validate_canonical_state")).toMatchObject({
+      status: "failed",
+      error: { code: "validation_failed" },
+    });
+    expect(failed.steps.find((step) => step.key === "load_observed_state")).toMatchObject({
+      status: "skipped",
+    });
+
+    handle.close();
+  });
+
+  it("fails malformed observed state before plan generation or mutation", () => {
+    const handle = createDatabase(":memory:");
+    const repository = new PersistenceRepository(handle.db);
+    const environment = repository.seedServiceConfigEnvironment();
+    const run = repository.createQueuedRun(environment.id);
+    const observedPath = createObservedPath();
+    writeFileSync(observedPath, "{", "utf8");
+
+    const failed = new WorkflowExecutor(repository, new ServiceConfigAdapter(observedPath)).execute(
+      run.id,
+    );
+
+    expect(failed.run.status).toBe("failed");
+    expect(failed.run.error).toMatchObject({ code: "workflow_failed" });
+    expect(failed.plan).toBeNull();
+    expect(failed.steps.find((step) => step.key === "load_observed_state")).toMatchObject({
+      status: "failed",
+    });
+    expect(failed.steps.find((step) => step.key === "normalize_state")).toMatchObject({
+      status: "skipped",
+    });
+    expect(readFileSync(observedPath, "utf8")).toBe("{");
+
+    handle.close();
+  });
+
+  it("fails safely when the atomic apply step throws", () => {
+    const handle = createDatabase(":memory:");
+    const repository = new PersistenceRepository(handle.db);
+    const environment = repository.seedServiceConfigEnvironment();
+    const run = repository.createQueuedRun(environment.id);
+    const observedPath = createObservedPath();
+    const adapter = new AtomicFailureAdapter(observedPath);
+    const executor = new WorkflowExecutor(repository, adapter);
+
+    executor.execute(run.id);
+    repository.recordDecision({
+      runId: run.id,
+      action: "approved",
+      actor: "local-operator",
+      comment: null,
+    });
+    approveRun(repository, run.id);
+    const failed = executor.executeReconciliation(run.id);
+
+    expect(failed.run.status).toBe("failed");
+    expect(failed.steps.find((step) => step.key === "apply_reconciliation")).toMatchObject({
+      status: "failed",
+      error: { message: "simulated_atomic_write_failure" },
+    });
+    expect(failed.steps.find((step) => step.key === "verify_convergence")).toMatchObject({
+      status: "skipped",
+    });
+    expect(JSON.parse(readFileSync(observedPath, "utf8"))["api-service"].image).toBe("api:v1");
+
+    handle.close();
+  });
+
+  it("fails verification when the observed state does not converge after apply", () => {
+    const handle = createDatabase(":memory:");
+    const repository = new PersistenceRepository(handle.db);
+    const environment = repository.seedServiceConfigEnvironment();
+    const run = repository.createQueuedRun(environment.id);
+    const observedPath = createObservedPath();
+    const adapter = new VerificationMismatchAdapter(observedPath);
+    const executor = new WorkflowExecutor(repository, adapter);
+
+    executor.execute(run.id);
+    repository.recordDecision({
+      runId: run.id,
+      action: "approved",
+      actor: "local-operator",
+      comment: null,
+    });
+    approveRun(repository, run.id);
+    const failed = executor.executeReconciliation(run.id);
+
+    expect(failed.run.status).toBe("failed");
+    expect(failed.steps.find((step) => step.key === "apply_reconciliation")).toMatchObject({
+      status: "succeeded",
+    });
+    expect(failed.steps.find((step) => step.key === "verify_convergence")).toMatchObject({
+      status: "failed",
+      error: { message: "verification_mismatch" },
+    });
+    expect(JSON.parse(readFileSync(observedPath, "utf8"))["api-service"].image).toBe("api:v1");
 
     handle.close();
   });
@@ -209,4 +327,26 @@ describe("WorkflowExecutor", () => {
 
 function createObservedPath(): string {
   return join(mkdtempSync(join(tmpdir(), "config-drift-guard-")), "observed.json");
+}
+
+class InvalidCanonicalAdapter extends ServiceConfigAdapter {
+  override loadCanonical(): JsonValue {
+    return { resources: [{ id: "api-service", type: "service", desired: { replicas: -1 } }] };
+  }
+}
+
+class AtomicFailureAdapter extends ServiceConfigAdapter {
+  override applyTarget(): ReturnType<ServiceConfigAdapter["applyTarget"]> {
+    throw new Error("simulated_atomic_write_failure");
+  }
+}
+
+class VerificationMismatchAdapter extends ServiceConfigAdapter {
+  override applyTarget(): ReturnType<ServiceConfigAdapter["applyTarget"]> {
+    return {
+      observedDigestBefore: "sha256:before",
+      observedDigestAfter: "sha256:after",
+      targetDigest: "sha256:target",
+    };
+  }
 }

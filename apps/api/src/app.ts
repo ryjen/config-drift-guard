@@ -24,6 +24,7 @@ const decisionRequestSchema = z
     comment: z.string().trim().min(1).nullable().optional(),
   })
   .strict();
+const emptyRequestSchema = z.object({}).strict();
 
 function isLocalOrigin(origin: string): boolean {
   try {
@@ -53,6 +54,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 
   repository.seedServiceConfigEnvironment();
   repository.seedDocumentationEnvironment();
+  repository.recoverInterruptedRuns();
 
   if (options.database === undefined) {
     app.addHook("onClose", async () => database.close());
@@ -71,6 +73,27 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 
   app.get<{ Reply: HealthResponse }>("/health", async () => healthResponse);
   app.get<{ Reply: Environment[] }>("/api/environments", async () => repository.listEnvironments());
+
+  app.post<{
+    Params: { id: string };
+    Body: unknown;
+    Reply: { status: "reset"; environment: Environment } | { error: string };
+  }>("/api/environments/:id/reset", async (request, reply) => {
+    const parsed = emptyRequestSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      reply.code(400);
+      return { error: "invalid_reset_request" };
+    }
+
+    const environment = repository.getEnvironment(request.params.id);
+    if (environment === null) {
+      reply.code(404);
+      return { error: "environment_not_found" };
+    }
+
+    adapters[environment.adapterKind].resetObserved();
+    return { status: "reset", environment };
+  });
 
   app.post<{ Params: { id: string }; Reply: RunSnapshot | { error: string } }>(
     "/api/environments/:id/runs",
