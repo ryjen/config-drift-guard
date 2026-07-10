@@ -2,6 +2,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { DocumentationAdapter } from "./adapters/documentation.js";
 import { ServiceConfigAdapter } from "./adapters/service-config.js";
 import { createDatabase } from "./persistence/database.js";
 import { PersistenceRepository } from "./persistence/repository.js";
@@ -54,6 +55,64 @@ describe("WorkflowExecutor", () => {
     expect(reloaded.findings.map((finding) => finding.path)).toEqual(
       snapshot.findings.map((finding) => finding.path),
     );
+
+    handle.close();
+  });
+
+  it("persists a complete deterministic structured-documentation drift scan", () => {
+    const handle = createDatabase(":memory:");
+    const repository = new PersistenceRepository(handle.db);
+    const environment = repository.seedDocumentationEnvironment();
+    const run = repository.createQueuedRun(environment.id);
+    const adapter = new DocumentationAdapter(createObservedPath());
+
+    const snapshot = new WorkflowExecutor(repository, adapter).execute(run.id);
+
+    expect(snapshot.run).toMatchObject({
+      status: "awaiting_approval",
+      currentStep: null,
+      findingCount: 3,
+    });
+    expect(snapshot.findings.map((finding) => [finding.path, finding.kind])).toEqual([
+      ["/retries/default", "changed"],
+      ["/timeout", "missing"],
+      ["/legacy_mode", "extra"],
+    ]);
+    expect(snapshot.plan).toMatchObject({
+      expectedObservedDigest: snapshot.run.observedDigest,
+      target: {
+        retries: { type: "integer", default: "3" },
+        timeout: { type: "integer", default: "30" },
+      },
+    });
+
+    handle.close();
+  });
+
+  it("applies an approved documentation plan atomically and verifies convergence", () => {
+    const handle = createDatabase(":memory:");
+    const repository = new PersistenceRepository(handle.db);
+    const environment = repository.seedDocumentationEnvironment();
+    const run = repository.createQueuedRun(environment.id);
+    const observedPath = createObservedPath();
+    const adapter = new DocumentationAdapter(observedPath);
+    const executor = new WorkflowExecutor(repository, adapter);
+
+    executor.execute(run.id);
+    repository.recordDecision({
+      runId: run.id,
+      action: "approved",
+      actor: "local-operator",
+      comment: null,
+    });
+    approveRun(repository, run.id);
+    const reconciled = executor.executeReconciliation(run.id);
+
+    expect(reconciled.run.status).toBe("succeeded");
+    expect(reconciled.findings).toEqual([]);
+    expect(readFileSync(observedPath, "utf8")).toContain("| retries | integer | 3 |");
+    expect(readFileSync(observedPath, "utf8")).toContain("| timeout | integer | 30 |");
+    expect(readFileSync(observedPath, "utf8")).not.toContain("legacy_mode");
 
     handle.close();
   });

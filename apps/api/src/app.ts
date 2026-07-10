@@ -1,4 +1,5 @@
 import {
+  type AdapterKind,
   type Environment,
   type Event,
   type HealthResponse,
@@ -8,6 +9,7 @@ import {
 import cors from "@fastify/cors";
 import Fastify, { type FastifyInstance } from "fastify";
 import { z } from "zod";
+import { DocumentationAdapter } from "./adapters/documentation.js";
 import { ServiceConfigAdapter } from "./adapters/service-config.js";
 import { createDatabase, type DatabaseHandle } from "./persistence/database.js";
 import { PersistenceRepository } from "./persistence/repository.js";
@@ -34,6 +36,7 @@ function isLocalOrigin(origin: string): boolean {
 
 export interface BuildAppOptions {
   readonly database?: DatabaseHandle;
+  readonly documentationObservedPath?: string;
   readonly serviceConfigObservedPath?: string;
 }
 
@@ -42,9 +45,14 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const database = options.database ?? createDatabase();
   const repository = new PersistenceRepository(database.db);
   const serviceConfigAdapter = new ServiceConfigAdapter(options.serviceConfigObservedPath);
-  const executor = new WorkflowExecutor(repository, serviceConfigAdapter);
+  const documentationAdapter = new DocumentationAdapter(options.documentationObservedPath);
+  const adapters = {
+    documentation: documentationAdapter,
+    service_config: serviceConfigAdapter,
+  } satisfies Record<AdapterKind, ServiceConfigAdapter | DocumentationAdapter>;
 
   repository.seedServiceConfigEnvironment();
+  repository.seedDocumentationEnvironment();
 
   if (options.database === undefined) {
     app.addHook("onClose", async () => database.close());
@@ -73,13 +81,9 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         return { error: "environment_not_found" };
       }
 
-      if (environment.adapterKind !== "service_config") {
-        reply.code(400);
-        return { error: "unsupported_adapter" };
-      }
-
       const run = repository.createQueuedRun(environment.id);
       const snapshot = repository.getRunSnapshot(run.id);
+      const executor = new WorkflowExecutor(repository, adapters[environment.adapterKind]);
       setTimeout(() => {
         try {
           executor.execute(run.id);
@@ -144,6 +148,12 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       comment: parsed.data.comment ?? null,
     });
     approveRun(repository, snapshot.run.id);
+    const environment = repository.getEnvironment(snapshot.run.environmentId);
+    if (environment === null) {
+      reply.code(404);
+      return { error: "environment_not_found" };
+    }
+    const executor = new WorkflowExecutor(repository, adapters[environment.adapterKind]);
     setTimeout(() => {
       try {
         executor.executeReconciliation(snapshot.run.id);

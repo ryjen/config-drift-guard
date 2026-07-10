@@ -111,8 +111,8 @@ export function OperatorConsole({ apiBaseUrl, environments }: OperatorConsolePro
         <p className="eyebrow">Operator console</p>
         <h1>Config Drift Guard</h1>
         <p className="lede">
-          Start a deterministic service-configuration drift scan, then inspect the persisted
-          workflow timeline, findings, evidence digests, and immutable remediation plan.
+          Start a deterministic drift scan, then inspect the persisted workflow timeline, findings,
+          evidence digests, and immutable remediation plan.
         </p>
       </header>
 

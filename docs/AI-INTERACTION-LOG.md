@@ -386,3 +386,56 @@ The assistant read the required docs, inspected the API, repository, state machi
 ### Result and remaining risks
 
 Approval-gated reconciliation is implemented for the primary service-config scenario. Remaining risks are broader failure hardening, reset/reseed convenience for repeated demos, direct manual browser verification, and the optional structured documentation-drift adapter.
+
+## Session 07 — Structured Documentation Drift
+
+**Date:** 2026-07-10
+**Tool/model:** OpenCode, gpt-5.5
+**Milestone:** Milestone 7 — Documentation drift
+**Commit:** Pending at time of entry; expected message `feat: detect structured documentation drift`.
+
+### Objective
+
+Implement the secondary structured-documentation adapter as an evaluator-ready vertical slice while reusing the existing deterministic workflow, persisted findings, evidence, immutable plan, approval, stale-plan guard, atomic apply, verification, REST snapshots, SSE notifications, and operator UI.
+
+### Complete prompt
+
+The user requested work in the current repository, required reading `README.md`, `docs/CURRENT-UNDERSTANDING.md`, `docs/PLAN.md`, and `docs/DECISIONS.md`, and asked for strict TypeScript, deterministic drift detection, pure drift-engine boundaries, one explicit state-machine module, one explicit workflow executor, REST snapshots as authoritative, SSE as refetch notifications only, no browser filesystem paths, adapter-managed fields only, server-generated immutable plans, approval-gated reconciliation with stale-plan validation, atomic apply and verification, no runtime AI, documentation updates, checks before committing, and commit message `feat: detect structured documentation drift`. The specific feature was a second adapter comparing canonical configuration schema or metadata to a managed Markdown table/generated block, detecting missing rows, obsolete rows, and changed type/default values, generating a deterministic corrected target, and avoiding arbitrary prose semantics.
+
+### Complete interaction
+
+The assistant read the required docs, inspected the service adapter, workflow executor, API routes, repository, contracts, tests, and UI. It extracted a shared atomic file helper, added a documentation adapter with seeded canonical schema metadata and a server-controlled Markdown file, parsed only the managed table block, normalized rows into structured settings, reused the pure drift engine for deterministic comparison and target generation, seeded a second environment, made the API choose adapters from persisted environment metadata for scans and approvals, added workflow and API tests for documentation detection and approval-gated convergence, ran checks, and reconciled README status.
+
+### Author decisions
+
+- Keep documentation parsing and Markdown serialization in the API adapter; the drift engine remains pure and unchanged.
+- Compare only rows in the managed `config-drift-guard` Markdown block and ignore arbitrary prose.
+- Represent the immutable plan target as structured setting rows; the adapter deterministically renders those rows back into a corrected Markdown table during reconciliation.
+- Reuse the existing one-page operator console without adding documentation-specific UI branches.
+
+### Accepted suggestions
+
+- Add a second seeded environment named structured documentation drift.
+- Detect changed `retries.default`, missing `timeout`, and obsolete `legacy_mode` from the seeded Markdown table.
+- Reuse the existing approval, stale-plan digest validation, atomic temp-file rename, and verification scan.
+- Add tests for documentation drift detection and API-level reconciliation.
+
+### Rejected suggestions
+
+- No runtime AI was added.
+- No generic adapter plugin framework, DAG engine, policy language, or prose-semantic comparison was introduced.
+- Browser input still cannot provide filesystem paths or remediation operations.
+
+### Corrections
+
+- Biome formatting/import-order issues were corrected after the first full check attempt.
+- Strict TypeScript required narrowing the documentation observed input to a Markdown string before replacement.
+
+### Verification
+
+- `corepack pnpm --filter @config-drift-guard/api test` passed.
+- `corepack pnpm check` passed.
+
+### Result and remaining risks
+
+Structured documentation drift now uses the same persisted workflow, evidence, immutable plans, approval controls, stale-plan validation, atomic apply, and verification UI as service configuration drift. Remaining risks are broader failure hardening, reset/reseed convenience for repeated demos, direct manual browser verification, and only supporting the one managed Markdown table shape.

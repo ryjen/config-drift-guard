@@ -1,14 +1,4 @@
-import {
-  closeSync,
-  existsSync,
-  fsyncSync,
-  mkdirSync,
-  openSync,
-  readFileSync,
-  renameSync,
-  writeFileSync,
-} from "node:fs";
-import { basename, dirname, join } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
 import {
   digestJson,
   digestNormalizedResourceState,
@@ -18,6 +8,7 @@ import {
   SERVICE_CONFIG_MANAGED_FIELDS,
 } from "@config-drift-guard/drift-engine";
 import { z } from "zod";
+import { writeJsonAtomically } from "./atomic-file.js";
 
 const desiredServiceSchema = z.object({
   id: z.string().min(1),
@@ -220,31 +211,4 @@ function sortStringRecord(input: Record<string, string>): JsonObject {
 
 function cloneJson<T extends JsonValue>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
-}
-
-function writeJsonAtomically(path: string, value: JsonValue): void {
-  mkdirSync(dirname(path), { recursive: true });
-  const temporaryPath = join(dirname(path), `.${basename(path)}.${process.pid}.${Date.now()}.tmp`);
-  const file = openSync(temporaryPath, "w", 0o600);
-  try {
-    writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`, "utf8");
-    fsyncSync(file);
-  } finally {
-    closeSync(file);
-  }
-  renameSync(temporaryPath, path);
-  fsyncDirectory(dirname(path));
-}
-
-function fsyncDirectory(path: string): void {
-  try {
-    const directory = openSync(path, "r");
-    try {
-      fsyncSync(directory);
-    } finally {
-      closeSync(directory);
-    }
-  } catch {
-    // Directory fsync is best-effort across platforms and filesystems.
-  }
 }

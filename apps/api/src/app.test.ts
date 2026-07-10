@@ -67,6 +67,61 @@ describe("API health", () => {
     database.close();
   });
 
+  it("runs and reconciles structured documentation drift through the shared API", async () => {
+    const database = createDatabase(":memory:");
+    const app = await buildApp({ database, documentationObservedPath: createObservedPath() });
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/api/environments/env_documentation/runs",
+    });
+    const created = createResponse.json();
+
+    await expect
+      .poll(async () => {
+        const response = await app.inject({ method: "GET", url: `/api/runs/${created.run.id}` });
+        return response.json().run.status;
+      })
+      .toBe("awaiting_approval");
+
+    const beforeApproval = (
+      await app.inject({ method: "GET", url: `/api/runs/${created.run.id}` })
+    ).json();
+    expect(
+      beforeApproval.findings.map((finding: { path: string; kind: string }) => [
+        finding.path,
+        finding.kind,
+      ]),
+    ).toEqual([
+      ["/retries/default", "changed"],
+      ["/timeout", "missing"],
+      ["/legacy_mode", "extra"],
+    ]);
+
+    const approveResponse = await app.inject({
+      method: "POST",
+      url: `/api/runs/${created.run.id}/approve`,
+      payload: { actor: "local-operator", comment: "Apply generated documentation table" },
+    });
+
+    expect(approveResponse.statusCode).toBe(202);
+
+    await expect
+      .poll(async () => {
+        const response = await app.inject({ method: "GET", url: `/api/runs/${created.run.id}` });
+        return response.json().run.status;
+      })
+      .toBe("succeeded");
+
+    const snapshot = (
+      await app.inject({ method: "GET", url: `/api/runs/${created.run.id}` })
+    ).json();
+    expect(snapshot.run.findingCount).toBe(0);
+    expect(snapshot.findings).toEqual([]);
+
+    await app.close();
+    database.close();
+  });
+
   it("rejects browser-submitted replacement operations", async () => {
     const database = createDatabase(":memory:");
     const app = await buildApp({ database, serviceConfigObservedPath: createObservedPath() });
@@ -149,6 +204,10 @@ describe("API health", () => {
       expect.objectContaining({
         id: "env_service_config",
         adapterKind: "service_config",
+      }),
+      expect.objectContaining({
+        id: "env_documentation",
+        adapterKind: "documentation",
       }),
     ]);
 

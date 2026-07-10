@@ -29,10 +29,26 @@ interface WorkflowRepository extends RunStateStore {
   getRunSnapshot(runId: string): RunSnapshot;
 }
 
+export interface DriftAdapter {
+  readonly kind: string;
+  loadCanonical(): JsonValue;
+  loadObserved(): JsonValue;
+  validateCanonical(input: JsonValue): void;
+  normalizeCanonical(input: JsonValue): ReturnType<ServiceConfigAdapter["normalizeCanonical"]>;
+  normalizeObserved(
+    input: JsonValue,
+    resourceId: string,
+  ): ReturnType<ServiceConfigAdapter["normalizeObserved"]>;
+  applyTarget(
+    expectedObservedDigest: string,
+    target: JsonValue,
+  ): ReturnType<ServiceConfigAdapter["applyTarget"]>;
+}
+
 export class WorkflowExecutor {
   constructor(
     private readonly repository: WorkflowRepository,
-    private readonly adapter = new ServiceConfigAdapter(),
+    private readonly adapter: DriftAdapter = new ServiceConfigAdapter(),
   ) {}
 
   execute(runId: string): RunSnapshot {

@@ -6,7 +6,7 @@ It models drift analysis as an explicit, persisted workflow so operators can ini
 
 ## Current status
 
-Milestone 6 has landed: the repository now has a strict pnpm TypeScript workspace with Fastify API, Next.js web app, contracts package, pure drift-engine package, Biome, Vitest, root verification scripts, shared Zod contracts, SQLite persistence through Drizzle, deterministic normalized-state comparison, an end-to-end persisted service-config drift scan, compact SSE progress notifications, and approval-gated reconciliation with verification.
+Milestone 7 has landed: the repository now has a strict pnpm TypeScript workspace with Fastify API, Next.js web app, contracts package, pure drift-engine package, Biome, Vitest, root verification scripts, shared Zod contracts, SQLite persistence through Drizzle, deterministic normalized-state comparison, end-to-end persisted service-config and structured-documentation drift scans, compact SSE progress notifications, and approval-gated reconciliation with verification.
 
 Implemented behavior is intentionally narrow:
 
@@ -15,6 +15,7 @@ Implemented behavior is intentionally narrow:
 - API CORS allows local browser origins only.
 - `apps/api` starts the primary six-step workflow in-process and persists progress events for `validate_canonical_state`, `load_observed_state`, `normalize_state`, `calculate_drift`, `classify_findings`, and `build_remediation_plan`; approved runs execute `preflight_reconciliation`, `apply_reconciliation`, and `verify_convergence`.
 - `apps/api` includes a local service-config adapter with server-controlled seeded canonical state and server-controlled observed JSON at `./data/service-config.observed.json` by default; browser requests cannot provide filesystem paths or arbitrary remediation operations.
+- `apps/api` includes a structured-documentation adapter with server-controlled seeded schema metadata and server-controlled derived Markdown at `./data/config-reference.md` by default; it compares only the managed Markdown table block between `<!-- config-drift-guard:start -->` and `<!-- config-drift-guard:end -->`.
 - `apps/web` renders a one-page operator console that starts a drift scan, displays the persisted timeline, findings, evidence digests, immutable remediation plan, decision evidence, event log, and live workflow notifications, supports approve/reject controls, and reloads the last run after browser refresh.
 - `packages/contracts` defines Zod-validated contracts for environments, runs, steps, findings, remediation plans, decisions, events, and REST run snapshots.
 - `packages/drift-engine` implements pure normalized-state comparison over adapter-managed fields, deterministic ordering, stable JSON-pointer-like paths, severity classification, SHA-256 canonical digests, and complete target-state generation.
@@ -58,7 +59,7 @@ canonical state
 
 The first adapter compares desired service configuration with observed runtime state.
 
-A secondary adapter can compare structured documentation with its canonical schema or metadata source.
+The second adapter compares canonical configuration metadata with a managed Markdown reference table.
 
 ## Control Plane Pattern
 

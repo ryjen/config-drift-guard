@@ -57,6 +57,7 @@ export const workflowSteps: readonly WorkflowStepKey[] = [
 ];
 
 export const serviceConfigEnvironmentId = "env_service_config";
+export const documentationEnvironmentId = "env_documentation";
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -115,6 +116,31 @@ export class PersistenceRepository {
     const seeded = this.getEnvironment(environment.id);
     if (seeded === null) {
       throw new Error("service_config_environment_seed_failed");
+    }
+
+    return seeded;
+  }
+
+  seedDocumentationEnvironment(): Environment {
+    const timestamp = nowIso();
+    const environment = {
+      id: documentationEnvironmentId,
+      name: "Structured documentation drift",
+      adapterKind: "documentation" as const,
+      sourceConfig: {
+        scenario: "documentation",
+        canonicalFixture: "configuration-schema.yaml",
+        observedFixture: "config-reference.md",
+      },
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+
+    this.db.insert(environments).values(environment).onConflictDoNothing().run();
+
+    const seeded = this.getEnvironment(environment.id);
+    if (seeded === null) {
+      throw new Error("documentation_environment_seed_failed");
     }
 
     return seeded;
