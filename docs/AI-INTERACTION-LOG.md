@@ -118,3 +118,59 @@ The assistant read the required docs, inspected the docs-only repository state, 
 ### Result and remaining risks
 
 The workspace foundation is in place and intentionally does not claim domain readiness. Remaining product risks are the later deterministic drift engine, persistence, explicit state machine, executor, SSE notifications, immutable plans, stale-plan validation, atomic reconciliation, and verification workflow.
+
+## Session 02 — Contracts and Persistence
+
+**Date:** 2026-07-10
+**Tool/model:** OpenCode, gpt-5.5
+**Milestone:** Milestone 2 — Persistence and contracts
+**Commit:** Pending at time of entry; expected message `feat: define shared contracts and SQLite persistence`.
+
+### Objective
+
+Implement the evaluator-ready persistence/contracts slice: Zod contracts, Drizzle SQLite schema, migrations, repository methods, service-config environment seed, and read-time JSON validation.
+
+### Complete prompt
+
+The user requested work in the current repository, required reading `README.md`, `docs/CURRENT-UNDERSTANDING.md`, `docs/PLAN.md`, and `docs/DECISIONS.md`, and asked for strict TypeScript, deterministic boundaries, pure drift engine separation, one state-machine and executor later, REST snapshots as authoritative, SSE as notification only, no browser filesystem paths, adapter-managed fields only, server-owned immutable plans, approval/stale-plan/atomic/verification constraints for later reconciliation, documentation updates for divergence, checks before commit, and commit message `feat: define shared contracts and SQLite persistence`.
+
+### Complete interaction
+
+The assistant read the required docs, inspected the workspace, added Zod contracts, added Drizzle with `better-sqlite3`, created a SQLite schema and initial migration SQL, implemented database initialization and a domain-shaped persistence repository, seeded the primary service-config environment, exposed `GET /api/environments`, added repository and API tests, corrected transaction usage, handled the local native SQLite binding build, added a Vitest alias so API tests use contracts source instead of stale `dist`, and updated implementation documentation.
+
+### Author decisions
+
+- Use Drizzle as planned; raw SQLite was not selected.
+- Keep persistence in `apps/api` and leave `packages/drift-engine` free of HTTP, database, filesystem, and React dependencies.
+- Seed only the primary service-config environment to avoid distracting from the main slice.
+- Store server-controlled fixture identifiers in environment metadata rather than accepting browser-provided filesystem paths.
+
+### Accepted suggestions
+
+- Validate persisted JSON on reads using the shared Zod contracts.
+- Add repository methods around domain concepts instead of exposing table-shaped CRUD.
+- Add explicit contracts for environments, runs, steps, findings, remediation plans, decisions, events, and run snapshots.
+- Add tests for seeded metadata, repository round-trips, immutable plan storage, decisions, events, and invalid persisted JSON.
+
+### Rejected suggestions
+
+- No runtime AI was added.
+- No documentation-drift environment was added in this milestone.
+- No generic workflow framework, state-machine implementation, or reconciliation implementation was added before the deterministic core is ready.
+
+### Corrections
+
+- `rtk` was unavailable in the shell, so commands were run directly with `corepack pnpm`.
+- The existing install initially lacked the `better-sqlite3` native binding; the package install script was run directly to build it locally.
+- API tests initially resolved stale contracts `dist`; a Vitest alias was added for test-time source resolution.
+
+### Verification
+
+- `corepack pnpm lint` passed.
+- `corepack pnpm typecheck` passed.
+- `corepack pnpm build` passed.
+- `corepack pnpm test` passed after building the native SQLite binding.
+
+### Result and remaining risks
+
+Shared contracts and SQLite persistence are in place. Remaining product risks are deterministic drift-engine behavior, explicit state machine, explicit workflow executor, run-detail snapshots, SSE notifications, immutable plan generation from actual drift, approval-gated reconciliation, stale-plan validation, atomic apply, and verification.

@@ -1,6 +1,12 @@
-import { type HealthResponse, healthResponse } from "@config-drift-guard/contracts";
+import {
+  type Environment,
+  type HealthResponse,
+  healthResponse,
+} from "@config-drift-guard/contracts";
 import cors from "@fastify/cors";
 import Fastify, { type FastifyInstance } from "fastify";
+import { createDatabase, type DatabaseHandle } from "./persistence/database.js";
+import { PersistenceRepository } from "./persistence/repository.js";
 
 const LOCAL_ORIGINS = new Set(["localhost", "127.0.0.1", "::1"]);
 
@@ -13,8 +19,20 @@ function isLocalOrigin(origin: string): boolean {
   }
 }
 
-export async function buildApp(): Promise<FastifyInstance> {
+export interface BuildAppOptions {
+  readonly database?: DatabaseHandle;
+}
+
+export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyInstance> {
   const app = Fastify({ logger: true });
+  const database = options.database ?? createDatabase();
+  const repository = new PersistenceRepository(database.db);
+
+  repository.seedServiceConfigEnvironment();
+
+  if (options.database === undefined) {
+    app.addHook("onClose", async () => database.close());
+  }
 
   await app.register(cors, {
     origin: (origin, callback) => {
@@ -28,6 +46,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   });
 
   app.get<{ Reply: HealthResponse }>("/health", async () => healthResponse);
+  app.get<{ Reply: Environment[] }>("/api/environments", async () => repository.listEnvironments());
 
   return app;
 }

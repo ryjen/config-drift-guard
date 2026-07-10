@@ -13,10 +13,14 @@
   "dependencies": {
     "@config-drift-guard/contracts": "workspace:*",
     "@fastify/cors": "^11.0.1",
+    "better-sqlite3": "^12.11.1",
+    "drizzle-orm": "^0.45.2",
     "fastify": "^5.4.0"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^24.0.13",
+    "drizzle-kit": "^0.31.10",
     "tsx": "^4.20.3"
   }
 }

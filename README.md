@@ -6,15 +6,18 @@ It models drift analysis as an explicit, persisted workflow so operators can ini
 
 ## Current status
 
-Milestone 1 has landed: the repository now has a strict pnpm TypeScript workspace with Fastify API, Next.js web app, contracts package, drift-engine package placeholder, Biome, Vitest, and root verification scripts.
+Milestone 2 has landed: the repository now has a strict pnpm TypeScript workspace with Fastify API, Next.js web app, contracts package, drift-engine package placeholder, Biome, Vitest, root verification scripts, shared Zod contracts, and SQLite persistence through Drizzle.
 
 Implemented behavior is intentionally narrow:
 
 - `apps/api` exposes `GET /health` and binds to `127.0.0.1` by default.
+- `apps/api` initializes SQLite at `./data/config-drift-guard.sqlite` by default and exposes seeded environment metadata at `GET /api/environments`.
 - API CORS allows local browser origins only.
 - `apps/web` renders a basic connectivity page that reads API health from the server side.
+- `packages/contracts` defines Zod-validated contracts for environments, runs, steps, findings, remediation plans, decisions, events, and REST run snapshots.
 - `packages/drift-engine` is present as a pure package boundary but does not implement drift behavior yet.
-- SQLite, domain drift detection, workflow execution, SSE, remediation, and reconciliation are not implemented yet.
+- Persistence includes environments, runs, steps, findings, remediation plans, decisions, and events, with repository reads validating persisted JSON through shared schemas.
+- Domain drift detection, workflow execution, SSE, remediation, and reconciliation are not implemented yet.
 
 ## Local development
 
