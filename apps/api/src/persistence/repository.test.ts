@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createDatabase } from "./database.js";
-import { PersistenceRepository, primaryWorkflowSteps } from "./repository.js";
+import { PersistenceRepository, workflowSteps } from "./repository.js";
 
 describe("PersistenceRepository", () => {
   it("seeds the service-config environment", () => {
@@ -74,7 +74,7 @@ describe("PersistenceRepository", () => {
 
     const snapshot = repository.getRunSnapshot(run.id);
 
-    expect(snapshot.steps.map((step) => step.key)).toEqual(primaryWorkflowSteps);
+    expect(snapshot.steps.map((step) => step.key)).toEqual(workflowSteps);
     expect(findings).toHaveLength(2);
     expect(snapshot.findings.map((finding) => finding.path)).toEqual(["/image", "/replicas"]);
     expect(plan).toMatchObject({ expectedObservedDigest: "sha256:observed" });

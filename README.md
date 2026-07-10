@@ -6,21 +6,22 @@ It models drift analysis as an explicit, persisted workflow so operators can ini
 
 ## Current status
 
-Milestone 5 has landed: the repository now has a strict pnpm TypeScript workspace with Fastify API, Next.js web app, contracts package, pure drift-engine package, Biome, Vitest, root verification scripts, shared Zod contracts, SQLite persistence through Drizzle, deterministic normalized-state comparison, an end-to-end persisted service-config drift scan, and compact SSE progress notifications.
+Milestone 6 has landed: the repository now has a strict pnpm TypeScript workspace with Fastify API, Next.js web app, contracts package, pure drift-engine package, Biome, Vitest, root verification scripts, shared Zod contracts, SQLite persistence through Drizzle, deterministic normalized-state comparison, an end-to-end persisted service-config drift scan, compact SSE progress notifications, and approval-gated reconciliation with verification.
 
 Implemented behavior is intentionally narrow:
 
-- `apps/api` exposes `GET /health`, `GET /api/environments`, `POST /api/environments/:id/runs`, `GET /api/runs/:runId`, and `GET /api/runs/:runId/events`, and binds to `127.0.0.1` by default.
+- `apps/api` exposes `GET /health`, `GET /api/environments`, `POST /api/environments/:id/runs`, `GET /api/runs/:runId`, `GET /api/runs/:runId/events`, `POST /api/runs/:runId/approve`, and `POST /api/runs/:runId/reject`, and binds to `127.0.0.1` by default.
 - `apps/api` initializes SQLite at `./data/config-drift-guard.sqlite` by default and exposes seeded environment metadata at `GET /api/environments`.
 - API CORS allows local browser origins only.
-- `apps/api` starts the primary six-step workflow in-process and persists progress events for `validate_canonical_state`, `load_observed_state`, `normalize_state`, `calculate_drift`, `classify_findings`, and `build_remediation_plan`.
-- `apps/api` includes a local service-config adapter with server-controlled seeded canonical and observed state; browser requests cannot provide filesystem paths or arbitrary remediation operations.
-- `apps/web` renders a one-page operator console that starts a drift scan, displays the persisted timeline, findings, evidence digests, immutable remediation plan, event log, and live workflow notifications, and reloads the last run after browser refresh.
+- `apps/api` starts the primary six-step workflow in-process and persists progress events for `validate_canonical_state`, `load_observed_state`, `normalize_state`, `calculate_drift`, `classify_findings`, and `build_remediation_plan`; approved runs execute `preflight_reconciliation`, `apply_reconciliation`, and `verify_convergence`.
+- `apps/api` includes a local service-config adapter with server-controlled seeded canonical state and server-controlled observed JSON at `./data/service-config.observed.json` by default; browser requests cannot provide filesystem paths or arbitrary remediation operations.
+- `apps/web` renders a one-page operator console that starts a drift scan, displays the persisted timeline, findings, evidence digests, immutable remediation plan, decision evidence, event log, and live workflow notifications, supports approve/reject controls, and reloads the last run after browser refresh.
 - `packages/contracts` defines Zod-validated contracts for environments, runs, steps, findings, remediation plans, decisions, events, and REST run snapshots.
 - `packages/drift-engine` implements pure normalized-state comparison over adapter-managed fields, deterministic ordering, stable JSON-pointer-like paths, severity classification, SHA-256 canonical digests, and complete target-state generation.
-- Persistence includes environments, runs, steps, findings, remediation plans, decisions, and events, with repository reads validating persisted JSON through shared schemas.
+- Persistence includes environments, runs, steps, findings, remediation plans, local-operator decisions, and events, with repository reads validating persisted JSON through shared schemas.
 - SSE supports compact run-change notifications and `Last-Event-ID` replay; REST run snapshots remain authoritative and the UI refetches snapshots on notifications.
-- Approval/rejection APIs, stale-plan validation, atomic reconciliation, and post-write verification are not implemented yet.
+- Approval/rejection APIs persist one immutable decision per run; repeated same decisions are idempotent and contradictory decisions return `409`.
+- Reconciliation re-reads observed state before mutation, fails safely with `stale_remediation_plan` if the digest changed, validates a complete target document, writes through a same-directory temporary file plus atomic rename, and verifies convergence with a post-write scan.
 
 ## Local development
 

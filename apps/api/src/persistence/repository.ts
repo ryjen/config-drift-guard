@@ -45,6 +45,17 @@ export const primaryWorkflowSteps: readonly WorkflowStepKey[] = [
   "build_remediation_plan",
 ];
 
+export const reconciliationWorkflowSteps: readonly WorkflowStepKey[] = [
+  "preflight_reconciliation",
+  "apply_reconciliation",
+  "verify_convergence",
+];
+
+export const workflowSteps: readonly WorkflowStepKey[] = [
+  ...primaryWorkflowSteps,
+  ...reconciliationWorkflowSteps,
+];
+
 export const serviceConfigEnvironmentId = "env_service_config";
 
 function nowIso(): string {
@@ -149,7 +160,7 @@ export class PersistenceRepository {
       this.db
         .insert(steps)
         .values(
-          primaryWorkflowSteps.map((key, sequence) => ({
+          workflowSteps.map((key, sequence) => ({
             runId: run.id,
             key,
             sequence,
@@ -187,15 +198,18 @@ export class PersistenceRepository {
     },
   ): Run {
     const timestamp = nowIso();
+    const current = this.getRun(runId);
     this.db
       .update(runs)
       .set({
         status: input.status,
         currentStep: input.currentStep ?? null,
-        canonicalDigest: input.canonicalDigest,
-        observedDigest: input.observedDigest,
+        canonicalDigest:
+          input.canonicalDigest === undefined ? current.canonicalDigest : input.canonicalDigest,
+        observedDigest:
+          input.observedDigest === undefined ? current.observedDigest : input.observedDigest,
         error: input.error,
-        version: this.getRun(runId).version + 1,
+        version: current.version + 1,
         updatedAt: timestamp,
       })
       .where(eq(runs.id, runId))

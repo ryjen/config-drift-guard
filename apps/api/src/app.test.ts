@@ -1,3 +1,6 @@
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { buildApp } from "./app.js";
 import { createDatabase } from "./persistence/database.js";
@@ -5,7 +8,7 @@ import { createDatabase } from "./persistence/database.js";
 describe("API health", () => {
   it("returns a deterministic health payload", async () => {
     const database = createDatabase(":memory:");
-    const app = await buildApp({ database });
+    const app = await buildApp({ database, serviceConfigObservedPath: createObservedPath() });
     const response = await app.inject({ method: "GET", url: "/health" });
 
     expect(response.statusCode).toBe(200);
@@ -18,9 +21,127 @@ describe("API health", () => {
     database.close();
   });
 
+  it("approves a server-generated plan and converges", async () => {
+    const database = createDatabase(":memory:");
+    const app = await buildApp({ database, serviceConfigObservedPath: createObservedPath() });
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/api/environments/env_service_config/runs",
+    });
+    const created = createResponse.json();
+
+    await expect
+      .poll(async () => {
+        const response = await app.inject({ method: "GET", url: `/api/runs/${created.run.id}` });
+        return response.json().run.status;
+      })
+      .toBe("awaiting_approval");
+
+    const approveResponse = await app.inject({
+      method: "POST",
+      url: `/api/runs/${created.run.id}/approve`,
+      payload: { actor: "local-operator", comment: "Apply generated plan" },
+    });
+
+    expect(approveResponse.statusCode).toBe(202);
+    expect(approveResponse.json().decision).toMatchObject({ action: "approved" });
+
+    await expect
+      .poll(async () => {
+        const response = await app.inject({ method: "GET", url: `/api/runs/${created.run.id}` });
+        return response.json().run.status;
+      })
+      .toBe("succeeded");
+
+    const snapshot = (
+      await app.inject({ method: "GET", url: `/api/runs/${created.run.id}` })
+    ).json();
+    expect(snapshot.run.findingCount).toBe(0);
+    expect(snapshot.findings).toEqual([]);
+    expect(snapshot.steps.at(-1)).toMatchObject({
+      key: "verify_convergence",
+      status: "succeeded",
+    });
+
+    await app.close();
+    database.close();
+  });
+
+  it("rejects browser-submitted replacement operations", async () => {
+    const database = createDatabase(":memory:");
+    const app = await buildApp({ database, serviceConfigObservedPath: createObservedPath() });
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/api/environments/env_service_config/runs",
+    });
+    const created = createResponse.json();
+
+    await expect
+      .poll(async () => {
+        const response = await app.inject({ method: "GET", url: `/api/runs/${created.run.id}` });
+        return response.json().run.status;
+      })
+      .toBe("awaiting_approval");
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/runs/${created.run.id}/approve`,
+      payload: { actor: "local-operator", operations: [{ path: "/image", value: "evil:v1" }] },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({ error: "invalid_decision_request" });
+
+    await app.close();
+    database.close();
+  });
+
+  it("makes repeated same decisions idempotent and contradictory decisions conflict", async () => {
+    const database = createDatabase(":memory:");
+    const app = await buildApp({ database, serviceConfigObservedPath: createObservedPath() });
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/api/environments/env_service_config/runs",
+    });
+    const created = createResponse.json();
+
+    await expect
+      .poll(async () => {
+        const response = await app.inject({ method: "GET", url: `/api/runs/${created.run.id}` });
+        return response.json().run.status;
+      })
+      .toBe("awaiting_approval");
+
+    const rejectResponse = await app.inject({
+      method: "POST",
+      url: `/api/runs/${created.run.id}/reject`,
+      payload: { actor: "local-operator" },
+    });
+    const repeatRejectResponse = await app.inject({
+      method: "POST",
+      url: `/api/runs/${created.run.id}/reject`,
+      payload: { actor: "local-operator" },
+    });
+    const approveResponse = await app.inject({
+      method: "POST",
+      url: `/api/runs/${created.run.id}/approve`,
+      payload: { actor: "local-operator" },
+    });
+
+    expect(rejectResponse.statusCode).toBe(200);
+    expect(rejectResponse.json().run.status).toBe("rejected");
+    expect(repeatRejectResponse.statusCode).toBe(200);
+    expect(repeatRejectResponse.json().decision.id).toBe(rejectResponse.json().decision.id);
+    expect(approveResponse.statusCode).toBe(409);
+    expect(approveResponse.json()).toEqual({ error: "contradictory_decision" });
+
+    await app.close();
+    database.close();
+  });
+
   it("returns seeded environment metadata", async () => {
     const database = createDatabase(":memory:");
-    const app = await buildApp({ database });
+    const app = await buildApp({ database, serviceConfigObservedPath: createObservedPath() });
     const response = await app.inject({ method: "GET", url: "/api/environments" });
 
     expect(response.statusCode).toBe(200);
@@ -37,7 +158,7 @@ describe("API health", () => {
 
   it("starts a persisted run and returns it by id", async () => {
     const database = createDatabase(":memory:");
-    const app = await buildApp({ database });
+    const app = await buildApp({ database, serviceConfigObservedPath: createObservedPath() });
     const createResponse = await app.inject({
       method: "POST",
       url: "/api/environments/env_service_config/runs",
@@ -114,3 +235,7 @@ describe("API health", () => {
     database.close();
   });
 });
+
+function createObservedPath(): string {
+  return join(mkdtempSync(join(tmpdir(), "config-drift-guard-")), "observed.json");
+}

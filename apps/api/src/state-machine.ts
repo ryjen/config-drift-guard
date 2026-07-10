@@ -85,6 +85,44 @@ export function finishRun(
   });
 }
 
+export function approveRun(store: RunStateStore, runId: string): Run {
+  const run = store.getRun(runId);
+  if (run.status !== "awaiting_approval") {
+    throw new Error(`illegal_run_transition:${run.status}:running`);
+  }
+
+  return store.updateRunState(runId, { status: "running", currentStep: null, error: null });
+}
+
+export function rejectRun(store: RunStateStore, runId: string): Run {
+  const run = store.getRun(runId);
+  if (run.status !== "awaiting_approval") {
+    throw new Error(`illegal_run_transition:${run.status}:rejected`);
+  }
+
+  store.skipPendingSteps(runId);
+  return store.updateRunState(runId, { status: "rejected", currentStep: null, error: null });
+}
+
+export function finishReconciledRun(
+  store: RunStateStore,
+  runId: string,
+  observedDigest: string,
+): Run {
+  const run = store.getRun(runId);
+  if (run.status !== "running") {
+    throw new Error(`illegal_run_transition:${run.status}:succeeded`);
+  }
+
+  return store.updateRunState(runId, {
+    status: "succeeded",
+    currentStep: null,
+    canonicalDigest: run.canonicalDigest,
+    observedDigest,
+    error: null,
+  });
+}
+
 export function failRun(
   store: RunStateStore,
   runId: string,

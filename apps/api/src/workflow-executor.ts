@@ -6,10 +6,11 @@ import {
   digestNormalizedResourceState,
 } from "@config-drift-guard/drift-engine";
 import { ZodError } from "zod";
-import { ServiceConfigAdapter } from "./adapters/service-config.js";
+import { ServiceConfigAdapter, StaleRemediationPlanError } from "./adapters/service-config.js";
 import {
   completeStep,
   failRun,
+  finishReconciledRun,
   finishRun,
   type RunStateStore,
   startRun,
@@ -128,6 +129,84 @@ export class WorkflowExecutor {
       return this.repository.getRunSnapshot(runId);
     }
   }
+
+  executeReconciliation(runId: string): RunSnapshot {
+    let activeStep: RunSnapshot["steps"][number]["key"] | null = null;
+
+    try {
+      const snapshot = this.repository.getRunSnapshot(runId);
+      if (snapshot.plan === null) {
+        throw new Error("remediation_plan_missing");
+      }
+
+      activeStep = "preflight_reconciliation";
+      startStep(this.repository, runId, activeStep);
+      const canonicalRaw = this.adapter.loadCanonical();
+      this.adapter.validateCanonical(canonicalRaw);
+      const canonical = this.adapter.normalizeCanonical(canonicalRaw);
+      const observedBefore = this.adapter.normalizeObserved(
+        this.adapter.loadObserved(),
+        canonical.resourceId,
+      );
+      const currentObservedDigest = digestNormalizedResourceState(observedBefore);
+      if (currentObservedDigest !== snapshot.plan.expectedObservedDigest) {
+        throw new StaleRemediationPlanError(
+          snapshot.plan.expectedObservedDigest,
+          currentObservedDigest,
+        );
+      }
+      completeStep(
+        this.repository,
+        runId,
+        activeStep,
+        { expectedObservedDigest: snapshot.plan.expectedObservedDigest, currentObservedDigest },
+        "Observed digest matches immutable plan",
+      );
+
+      activeStep = "apply_reconciliation";
+      startStep(this.repository, runId, activeStep);
+      const applyResult = this.adapter.applyTarget(
+        snapshot.plan.expectedObservedDigest,
+        snapshot.plan.target,
+      );
+      completeStep(
+        this.repository,
+        runId,
+        activeStep,
+        { ...applyResult },
+        "Target state applied with temporary-file atomic rename",
+      );
+
+      activeStep = "verify_convergence";
+      startStep(this.repository, runId, activeStep);
+      const observedAfter = this.adapter.normalizeObserved(
+        this.adapter.loadObserved(),
+        canonical.resourceId,
+      );
+      const verification = compareNormalizedResourceStates(canonical, observedAfter);
+      if (verification.hasDrift) {
+        throw new Error("verification_mismatch");
+      }
+      this.repository.replaceFindings(runId, []);
+      completeStep(
+        this.repository,
+        runId,
+        activeStep,
+        {
+          observedDigest: verification.observedDigest,
+          findingCount: verification.findings.length,
+          engineVersion: verification.engineVersion,
+        },
+        "Post-write verification scan converged",
+      );
+
+      finishReconciledRun(this.repository, runId, verification.observedDigest);
+      return this.repository.getRunSnapshot(runId);
+    } catch (error) {
+      failRun(this.repository, runId, activeStep, toErrorEnvelope(error));
+      return this.repository.getRunSnapshot(runId);
+    }
+  }
 }
 
 function toPersistedFinding(finding: DriftFinding): Omit<Finding, "id" | "runId"> {
@@ -160,6 +239,17 @@ function severitySummary(findings: readonly DriftFinding[]): JsonValue {
 }
 
 function toErrorEnvelope(error: unknown): ErrorEnvelope {
+  if (error instanceof StaleRemediationPlanError) {
+    return {
+      code: "stale_remediation_plan",
+      message: "Observed state changed after the remediation plan was generated",
+      detail: {
+        expectedObservedDigest: error.expectedObservedDigest,
+        currentObservedDigest: error.currentObservedDigest,
+      },
+    };
+  }
+
   if (error instanceof ZodError) {
     return {
       code: "validation_failed",

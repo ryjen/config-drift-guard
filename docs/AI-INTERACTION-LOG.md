@@ -332,3 +332,57 @@ The assistant read the required docs, inspected API routes, repository event per
 ### Result and remaining risks
 
 The UI can subscribe to compact run-change notifications, reconnect with browser-managed `Last-Event-ID`, and refetch authoritative snapshots. Remaining product risks are approval/rejection APIs, stale-plan validation, atomic reconciliation, post-write verification, failure hardening, and direct manual browser verification of the SSE stream.
+
+## Session 06 — Approval-Gated Reconciliation
+
+**Date:** 2026-07-10
+**Tool/model:** OpenCode, gpt-5.5
+**Milestone:** Milestone 6 — Approval and reconciliation
+**Commit:** Pending at time of entry; expected message `feat: add approval-gated reconciliation and verification`.
+
+### Objective
+
+Implement the evaluator-ready reconciliation path: immutable server-generated plan approval/rejection, local-operator decision records, stale-plan protection, atomic observed-state apply, verification scan, and UI controls without allowing browser-submitted replacement operations.
+
+### Complete prompt
+
+The user requested work in the current repository, required reading `README.md`, `docs/CURRENT-UNDERSTANDING.md`, `docs/PLAN.md`, and `docs/DECISIONS.md`, and asked for a vertical slice with strict TypeScript, deterministic drift detection, pure drift-engine boundaries, one explicit state-machine module, one explicit workflow executor, REST snapshots as authoritative, SSE only as refetch notifications, no browser filesystem paths, adapter-managed fields only, server-generated immutable plans, approval/rejection endpoints, local-operator decision records, idempotent same decisions, `409` contradictory decisions, observed digest recheck, `stale_remediation_plan` failure, complete target validation, temporary-file atomic rename, post-write verification scan, UI approval controls and evidence display, checks before commit, and commit message `feat: add approval-gated reconciliation and verification`.
+
+### Complete interaction
+
+The assistant read the required docs, inspected the API, repository, state machine, service-config adapter, workflow executor, contracts, tests, and UI. It extended the adapter to use a server-controlled observed JSON file, added digest preflight and atomic writes, added explicit approval/rejection/reconciliation transitions, added approve/reject REST endpoints, made same decisions idempotent and contradictory decisions conflict, added reconciliation executor steps, updated the console with decision controls and evidence, added tests for happy-path convergence, stale-plan failure, rejected browser operations, idempotency, and contradiction, and reconciled README status.
+
+### Author Decisions
+
+- Keep the drift engine pure; filesystem I/O stays in the API adapter.
+- Preserve one state-machine module and one explicit workflow executor; no workflow/DAG framework was added.
+- Treat the observed-state path as server-controlled configuration, defaulting to `./data/service-config.observed.json`.
+- Reject unknown decision request fields so browser-submitted replacement operations fail validation instead of being interpreted.
+
+### Accepted Suggestions
+
+- Persist a local-operator decision before reconciliation starts.
+- Re-read observed state and compare the current managed-field digest to the plan digest before mutation.
+- Build and validate a complete observed document by preserving unmanaged runtime metadata and replacing only adapter-managed fields.
+- Write through a same-directory temporary file, fsync where practical, and rename atomically.
+- Verify convergence by scanning observed state again after apply and only then marking the run succeeded.
+
+### Rejected Suggestions
+
+- No runtime AI was added.
+- No generic workflow framework, policy DSL, browser-authored operations, or documentation-drift adapter was added.
+- No browser-provided filesystem path was accepted.
+
+### Corrections
+
+- Repository run-state updates were adjusted to preserve existing evidence digests when optional fields are omitted.
+- Tests use per-test server-side observed-state paths so file-backed reconciliation state does not leak between cases.
+
+### Verification
+
+- `corepack pnpm --filter @config-drift-guard/api test` passed.
+- Full repository checks are run before committing.
+
+### Result and remaining risks
+
+Approval-gated reconciliation is implemented for the primary service-config scenario. Remaining risks are broader failure hardening, reset/reseed convenience for repeated demos, direct manual browser verification, and the optional structured documentation-drift adapter.

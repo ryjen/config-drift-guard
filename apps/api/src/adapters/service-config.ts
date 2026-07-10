@@ -1,4 +1,17 @@
 import {
+  closeSync,
+  existsSync,
+  fsyncSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  renameSync,
+  writeFileSync,
+} from "node:fs";
+import { basename, dirname, join } from "node:path";
+import {
+  digestJson,
+  digestNormalizedResourceState,
   type JsonObject,
   type JsonValue,
   type NormalizedResourceState,
@@ -30,6 +43,27 @@ const observedServiceSchema = z
   .passthrough();
 
 const observedSchema = z.record(z.string(), observedServiceSchema);
+
+const targetSchema = z.object({
+  image: z.string().min(1),
+  replicas: z.number().int().nonnegative(),
+  environment: z.record(z.string(), z.string()),
+});
+
+export interface ApplyResult {
+  readonly observedDigestBefore: string;
+  readonly observedDigestAfter: string;
+  readonly targetDigest: string;
+}
+
+export class StaleRemediationPlanError extends Error {
+  constructor(
+    readonly expectedObservedDigest: string,
+    readonly currentObservedDigest: string,
+  ) {
+    super("stale_remediation_plan");
+  }
+}
 
 export interface LoadedServiceConfigState {
   readonly canonicalRaw: JsonValue;
@@ -68,12 +102,18 @@ const seededObserved = {
 export class ServiceConfigAdapter {
   readonly kind = "service_config" as const;
 
+  constructor(
+    private readonly observedPath = process.env.CONFIG_DRIFT_GUARD_OBSERVED_STATE ??
+      "./data/service-config.observed.json",
+  ) {}
+
   loadCanonical(): JsonValue {
     return cloneJson(seededCanonical);
   }
 
   loadObserved(): JsonValue {
-    return cloneJson(seededObserved);
+    this.ensureObservedStateFile();
+    return JSON.parse(readFileSync(this.observedPath, "utf8")) as JsonValue;
   }
 
   validateCanonical(input: JsonValue): void {
@@ -122,6 +162,54 @@ export class ServiceConfigAdapter {
       managedFields: SERVICE_CONFIG_MANAGED_FIELDS,
     };
   }
+
+  applyTarget(expectedObservedDigest: string, target: JsonValue): ApplyResult {
+    const canonical = this.normalizeCanonical(this.loadCanonical());
+    const observedRaw = this.loadObserved();
+    const observed = this.normalizeObserved(observedRaw, canonical.resourceId);
+    const currentObservedDigest = digestNormalizedResourceState(observed);
+    if (currentObservedDigest !== expectedObservedDigest) {
+      throw new StaleRemediationPlanError(expectedObservedDigest, currentObservedDigest);
+    }
+
+    const parsedTarget = targetSchema.parse(target);
+    const completeObserved = observedSchema.parse(observedRaw);
+    const currentResource = completeObserved[canonical.resourceId];
+    if (currentResource === undefined) {
+      throw new Error(`observed_resource_missing:${canonical.resourceId}`);
+    }
+
+    const nextObserved = JSON.parse(
+      JSON.stringify({
+        ...completeObserved,
+        [canonical.resourceId]: {
+          ...currentResource,
+          image: parsedTarget.image,
+          replicas: parsedTarget.replicas,
+          environment: sortStringRecord(parsedTarget.environment),
+        },
+      }),
+    ) as JsonValue;
+    observedSchema.parse(nextObserved);
+    writeJsonAtomically(this.observedPath, nextObserved);
+
+    const observedAfter = this.normalizeObserved(this.loadObserved(), canonical.resourceId);
+    return {
+      observedDigestBefore: currentObservedDigest,
+      observedDigestAfter: digestNormalizedResourceState(observedAfter),
+      targetDigest: digestJson(target as JsonValue),
+    };
+  }
+
+  resetObserved(): void {
+    writeJsonAtomically(this.observedPath, seededObserved);
+  }
+
+  private ensureObservedStateFile(): void {
+    if (!existsSync(this.observedPath)) {
+      writeJsonAtomically(this.observedPath, seededObserved);
+    }
+  }
 }
 
 function sortStringRecord(input: Record<string, string>): JsonObject {
@@ -132,4 +220,31 @@ function sortStringRecord(input: Record<string, string>): JsonObject {
 
 function cloneJson<T extends JsonValue>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function writeJsonAtomically(path: string, value: JsonValue): void {
+  mkdirSync(dirname(path), { recursive: true });
+  const temporaryPath = join(dirname(path), `.${basename(path)}.${process.pid}.${Date.now()}.tmp`);
+  const file = openSync(temporaryPath, "w", 0o600);
+  try {
+    writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+    fsyncSync(file);
+  } finally {
+    closeSync(file);
+  }
+  renameSync(temporaryPath, path);
+  fsyncDirectory(dirname(path));
+}
+
+function fsyncDirectory(path: string): void {
+  try {
+    const directory = openSync(path, "r");
+    try {
+      fsyncSync(directory);
+    } finally {
+      closeSync(directory);
+    }
+  } catch {
+    // Directory fsync is best-effort across platforms and filesystems.
+  }
 }

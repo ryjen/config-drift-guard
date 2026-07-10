@@ -60,6 +60,32 @@ export function OperatorConsole({ apiBaseUrl, environments }: OperatorConsolePro
 
   const selectedEnvironment = environments.find((environment) => environment.id === environmentId);
 
+  function decideRun(action: "approve" | "reject"): void {
+    if (snapshot === null) {
+      return;
+    }
+
+    const runId = snapshot.run.id;
+    startTransition(async () => {
+      setError(null);
+      const response = await fetch(`${apiBaseUrl}/api/runs/${runId}/${action}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ actor: "local-operator", comment: null }),
+      });
+
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+        setError(`${action} failed: ${payload?.error ?? `HTTP ${response.status}`}`);
+        return;
+      }
+
+      const nextSnapshot = (await response.json()) as RunSnapshot;
+      setSnapshot(nextSnapshot);
+      window.localStorage.setItem(lastRunStorageKey, nextSnapshot.run.id);
+    });
+  }
+
   function startRun(): void {
     startTransition(async () => {
       setError(null);
@@ -156,7 +182,12 @@ export function OperatorConsole({ apiBaseUrl, environments }: OperatorConsolePro
       </section>
 
       {snapshot !== null ? (
-        <RunDetails liveNotifications={liveNotifications} snapshot={snapshot} />
+        <RunDetails
+          isPending={isPending}
+          liveNotifications={liveNotifications}
+          onDecision={decideRun}
+          snapshot={snapshot}
+        />
       ) : null}
     </main>
   );
@@ -181,12 +212,18 @@ async function refreshRun(
 }
 
 function RunDetails({
+  isPending,
   liveNotifications,
+  onDecision,
   snapshot,
 }: {
+  readonly isPending: boolean;
   readonly liveNotifications: readonly LiveNotification[];
+  readonly onDecision: (action: "approve" | "reject") => void;
   readonly snapshot: RunSnapshot;
 }) {
+  const canDecide = snapshot.run.status === "awaiting_approval" && snapshot.decision === null;
+
   return (
     <section className="detailsGrid">
       <article className="panel widePanel">
@@ -239,7 +276,48 @@ function RunDetails({
         {snapshot.plan === null ? (
           <p className="emptyState">No plan generated.</p>
         ) : (
-          <pre>{JSON.stringify(snapshot.plan, null, 2)}</pre>
+          <>
+            <dl className="compactFacts planFacts">
+              <div>
+                <dt>Expected observed digest</dt>
+                <dd>{snapshot.plan.expectedObservedDigest}</dd>
+              </div>
+              <div>
+                <dt>Engine version</dt>
+                <dd>{snapshot.plan.engineVersion}</dd>
+              </div>
+              <div>
+                <dt>Decision</dt>
+                <dd>
+                  {snapshot.decision === null
+                    ? "awaiting local operator"
+                    : `${snapshot.decision.action} by ${snapshot.decision.actor}`}
+                </dd>
+              </div>
+            </dl>
+            <pre>{JSON.stringify(snapshot.plan, null, 2)}</pre>
+            <div className="decisionControls">
+              <button
+                className="secondaryButton"
+                type="button"
+                onClick={() => onDecision("reject")}
+                disabled={!canDecide || isPending}
+              >
+                Reject plan
+              </button>
+              <button
+                type="button"
+                onClick={() => onDecision("approve")}
+                disabled={!canDecide || isPending}
+              >
+                Approve reconcile
+              </button>
+            </div>
+            <p className="emptyState">
+              Approval submits only a local-operator decision. Replacement operations are generated
+              and applied server-side from the immutable plan.
+            </p>
+          </>
         )}
       </article>
 
