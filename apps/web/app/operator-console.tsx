@@ -88,7 +88,7 @@ export function OperatorConsole({ apiBaseUrl, environments }: OperatorConsolePro
       const response = await fetch(`${apiBaseUrl}/api/runs/${runId}/${action}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ actor: "local-operator", comment: null }),
+        body: JSON.stringify({ comment: null }),
       });
 
       if (!response.ok) {
