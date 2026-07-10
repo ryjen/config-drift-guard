@@ -1,0 +1,20 @@
+{
+  "name": "config-drift-guard",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.13.1",
+  "scripts": {
+    "dev": "corepack pnpm --parallel --filter @config-drift-guard/api --filter @config-drift-guard/web dev",
+    "build": "corepack pnpm -r build",
+    "test": "corepack pnpm -r test",
+    "typecheck": "corepack pnpm -r typecheck",
+    "lint": "biome check .",
+    "check": "corepack pnpm lint && corepack pnpm typecheck && corepack pnpm build && corepack pnpm test"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.1.2",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}

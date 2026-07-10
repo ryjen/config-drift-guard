@@ -6,7 +6,25 @@ It models drift analysis as an explicit, persisted workflow so operators can ini
 
 ## Current status
 
-The repository is under active implementation.
+Milestone 1 has landed: the repository now has a strict pnpm TypeScript workspace with Fastify API, Next.js web app, contracts package, drift-engine package placeholder, Biome, Vitest, and root verification scripts.
+
+Implemented behavior is intentionally narrow:
+
+- `apps/api` exposes `GET /health` and binds to `127.0.0.1` by default.
+- API CORS allows local browser origins only.
+- `apps/web` renders a basic connectivity page that reads API health from the server side.
+- `packages/drift-engine` is present as a pure package boundary but does not implement drift behavior yet.
+- SQLite, domain drift detection, workflow execution, SSE, remediation, and reconciliation are not implemented yet.
+
+## Local development
+
+```bash
+corepack pnpm install
+corepack pnpm check
+corepack pnpm dev
+```
+
+The API defaults to `http://127.0.0.1:4000` and the web app defaults to `http://127.0.0.1:3000`.
 
 The authoritative product understanding and delivery plan are maintained in:
 
