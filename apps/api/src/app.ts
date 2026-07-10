@@ -17,6 +17,8 @@ import { approveRun, rejectRun } from "./state-machine.js";
 import { WorkflowExecutor } from "./workflow-executor.js";
 
 const LOCAL_ORIGINS = new Set(["localhost", "127.0.0.1", "::1"]);
+const QUEUE_DELAY_MS = Number.parseInt(process.env.QUEUE_DELAY_MS ?? "0", 10) || 0;
+const PHASE_DELAY_MS = Number.parseInt(process.env.PHASE_DELAY_MS ?? "0", 10) || 0;
 
 const decisionRequestSchema = z
   .object({
@@ -106,14 +108,14 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 
       const run = repository.createQueuedRun(environment.id);
       const snapshot = repository.getRunSnapshot(run.id);
-      const executor = new WorkflowExecutor(repository, adapters[environment.adapterKind]);
+      const executor = new WorkflowExecutor(
+        repository,
+        adapters[environment.adapterKind],
+        PHASE_DELAY_MS,
+      );
       setTimeout(() => {
-        try {
-          executor.execute(run.id);
-        } catch (error) {
-          request.log.error({ error, runId: run.id }, "workflow execution failed");
-        }
-      }, 0);
+        void executor.execute(run.id);
+      }, QUEUE_DELAY_MS);
       reply.code(201);
       return snapshot;
     },
@@ -176,14 +178,14 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       reply.code(404);
       return { error: "environment_not_found" };
     }
-    const executor = new WorkflowExecutor(repository, adapters[environment.adapterKind]);
+    const executor = new WorkflowExecutor(
+      repository,
+      adapters[environment.adapterKind],
+      PHASE_DELAY_MS,
+    );
     setTimeout(() => {
-      try {
-        executor.executeReconciliation(snapshot.run.id);
-      } catch (error) {
-        request.log.error({ error, runId: snapshot.run.id }, "reconciliation execution failed");
-      }
-    }, 0);
+      void executor.executeReconciliation(snapshot.run.id);
+    }, QUEUE_DELAY_MS);
     reply.code(202);
     return repository.getRunSnapshot(snapshot.run.id);
   });
@@ -242,11 +244,13 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     }
 
     reply.hijack();
+    const requestOrigin = request.headers.origin;
     reply.raw.writeHead(200, {
       "Cache-Control": "no-cache, no-transform",
       Connection: "keep-alive",
       "Content-Type": "text/event-stream",
       "X-Accel-Buffering": "no",
+      ...(requestOrigin !== undefined ? { "Access-Control-Allow-Origin": requestOrigin } : {}),
     });
 
     let unsubscribe = (): void => undefined;
@@ -265,7 +269,15 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     };
 
     unsubscribe = repository.subscribeRunEvents(request.params.runId, writeEvent);
-    request.raw.on("close", unsubscribe);
+    const heartbeat = setInterval(() => {
+      if (!reply.raw.destroyed) {
+        reply.raw.write(":heartbeat\n\n");
+      }
+    }, 15_000);
+    request.raw.on("close", () => {
+      clearInterval(heartbeat);
+      unsubscribe();
+    });
 
     for (const event of repository.listRunEventsAfter(request.params.runId, lastSentEventId)) {
       writeEvent(event);

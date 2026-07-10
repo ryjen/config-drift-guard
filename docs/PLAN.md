@@ -464,7 +464,7 @@ Synchronous or simple in-process background execution is acceptable.
 
 ### Milestone 9 — Documentation and submission — LANDED
 
-**Commit:** `docs: finalize architecture, trade-offs, and AI usage` (sha pending)
+**Commit:** `docs: finalize architecture, trade-offs, and AI usage` (sha `8cecfe0`)
 
 - README reconciled to actual behavior;
 - architecture document;

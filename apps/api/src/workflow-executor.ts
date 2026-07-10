@@ -45,17 +45,23 @@ export interface DriftAdapter {
   ): ReturnType<ServiceConfigAdapter["applyTarget"]>;
 }
 
+function delay(ms: number): Promise<void> {
+  return ms > 0 ? new Promise((resolve) => setTimeout(resolve, ms)) : Promise.resolve();
+}
+
 export class WorkflowExecutor {
   constructor(
     private readonly repository: WorkflowRepository,
     private readonly adapter: DriftAdapter = new ServiceConfigAdapter(),
+    private readonly phaseDelay = 0,
   ) {}
 
-  execute(runId: string): RunSnapshot {
+  async execute(runId: string): Promise<RunSnapshot> {
     let activeStep: RunSnapshot["steps"][number]["key"] | null = null;
 
     try {
       startRun(this.repository, runId);
+      await delay(this.phaseDelay);
 
       activeStep = "validate_canonical_state";
       startStep(this.repository, runId, activeStep);
@@ -68,6 +74,7 @@ export class WorkflowExecutor {
         { resourceCount: 1 },
         "Canonical state is valid",
       );
+      await delay(this.phaseDelay);
 
       activeStep = "load_observed_state";
       startStep(this.repository, runId, activeStep);
@@ -79,6 +86,7 @@ export class WorkflowExecutor {
         { source: "seeded-local-runtime" },
         "Observed state loaded",
       );
+      await delay(this.phaseDelay);
 
       activeStep = "normalize_state";
       startStep(this.repository, runId, activeStep);
@@ -93,6 +101,7 @@ export class WorkflowExecutor {
         { canonicalDigest, observedDigest, managedFields: canonical.managedFields },
         "Canonical and observed state normalized",
       );
+      await delay(this.phaseDelay);
 
       activeStep = "calculate_drift";
       startStep(this.repository, runId, activeStep);
@@ -104,6 +113,7 @@ export class WorkflowExecutor {
         { findingCount: comparison.findings.length, engineVersion: comparison.engineVersion },
         "Drift calculated deterministically",
       );
+      await delay(this.phaseDelay);
 
       activeStep = "classify_findings";
       startStep(this.repository, runId, activeStep);
@@ -116,6 +126,7 @@ export class WorkflowExecutor {
         severitySummary(comparison.findings),
         "Findings classified",
       );
+      await delay(this.phaseDelay);
 
       activeStep = "build_remediation_plan";
       startStep(this.repository, runId, activeStep);
@@ -146,7 +157,7 @@ export class WorkflowExecutor {
     }
   }
 
-  executeReconciliation(runId: string): RunSnapshot {
+  async executeReconciliation(runId: string): Promise<RunSnapshot> {
     let activeStep: RunSnapshot["steps"][number]["key"] | null = null;
 
     try {
@@ -178,6 +189,7 @@ export class WorkflowExecutor {
         { expectedObservedDigest: snapshot.plan.expectedObservedDigest, currentObservedDigest },
         "Observed digest matches immutable plan",
       );
+      await delay(this.phaseDelay);
 
       activeStep = "apply_reconciliation";
       startStep(this.repository, runId, activeStep);
@@ -192,6 +204,7 @@ export class WorkflowExecutor {
         { ...applyResult },
         "Target state applied with temporary-file atomic rename",
       );
+      await delay(this.phaseDelay);
 
       activeStep = "verify_convergence";
       startStep(this.repository, runId, activeStep);
@@ -215,6 +228,7 @@ export class WorkflowExecutor {
         },
         "Post-write verification scan converged",
       );
+      await delay(this.phaseDelay);
 
       finishReconciledRun(this.repository, runId, verification.observedDigest);
       return this.repository.getRunSnapshot(runId);

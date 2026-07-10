@@ -1,7 +1,7 @@
 "use client";
 
 import type { Environment, RunSnapshot } from "@config-drift-guard/contracts";
-import { useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 
 const lastRunStorageKey = "config-drift-guard:last-run-id";
 
@@ -21,9 +21,30 @@ export function OperatorConsole({ apiBaseUrl, environments }: OperatorConsolePro
   const [environmentId, setEnvironmentId] = useState(environments[0]?.id ?? "");
   const [snapshot, setSnapshot] = useState<RunSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [liveNotifications, setLiveNotifications] = useState<LiveNotification[]>([]);
   const [isPending, startTransition] = useTransition();
+  const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeRunId = snapshot?.run.id ?? null;
+
+  const flashNotice = useCallback((message: string) => {
+    if (noticeTimer.current !== null) {
+      clearTimeout(noticeTimer.current);
+    }
+    setNotice(message);
+    noticeTimer.current = setTimeout(() => {
+      setNotice(null);
+      noticeTimer.current = null;
+    }, 4000);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (noticeTimer.current !== null) {
+        clearTimeout(noticeTimer.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const runId = window.localStorage.getItem(lastRunStorageKey);
@@ -51,10 +72,6 @@ export function OperatorConsole({ apiBaseUrl, environments }: OperatorConsolePro
       setLiveNotifications((current) => [notification, ...current].slice(0, 8));
       void refreshRun(apiBaseUrl, notification.runId, setSnapshot, setError);
     });
-    eventSource.onerror = () => {
-      setError("Live update stream disconnected; the persisted run snapshot remains available.");
-    };
-
     return () => eventSource.close();
   }, [activeRunId, apiBaseUrl]);
 
@@ -83,6 +100,9 @@ export function OperatorConsole({ apiBaseUrl, environments }: OperatorConsolePro
       const nextSnapshot = (await response.json()) as RunSnapshot;
       setSnapshot(nextSnapshot);
       window.localStorage.setItem(lastRunStorageKey, nextSnapshot.run.id);
+      flashNotice(
+        action === "approve" ? "Reconciliation approved — workflow executing" : "Plan rejected",
+      );
     });
   }
 
@@ -154,6 +174,7 @@ export function OperatorConsole({ apiBaseUrl, environments }: OperatorConsolePro
             {isPending ? "Running scan..." : "Run drift scan"}
           </button>
           {error !== null ? <p className="errorText">{error}</p> : null}
+          {notice !== null ? <p className="noticeText">{notice}</p> : null}
         </aside>
 
         <section className="panel runPanel">

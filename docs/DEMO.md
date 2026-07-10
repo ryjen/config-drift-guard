@@ -31,6 +31,14 @@ corepack pnpm --filter @config-drift-guard/web dev
 
 The web app binds to `http://127.0.0.1:3000` by default.
 
+Or use the single-command demo with simulated delays:
+
+```bash
+corepack pnpm demo
+```
+
+This sets `QUEUE_DELAY_MS=2000` (2s before workflow starts) and `PHASE_DELAY_MS=500` (500ms between each step) so you can observe the live SSE timeline filling in over ~5 seconds. Both env vars default to `0` when omitted.
+
 ## Primary happy path (service configuration drift)
 
 1. Open `http://127.0.0.1:3000` in a browser.
@@ -44,7 +52,7 @@ The web app binds to `http://127.0.0.1:3000` by default.
    - `/environment/LOG_LEVEL` — warning, observed `"debug"`, desired `"info"`
 7. The evidence panel shows the canonical and observed SHA-256 digests.
 8. The plan panel shows target state `{"image":"api:v2","replicas":3,"environment":{"LOG_LEVEL":"info"}}` with the expected observed digest and engine version.
-9. Click **Approve reconcile**. The reconciliation workflow executes: preflight, atomic apply, verification.
+9. Click **Approve reconcile**. A green notification confirms the approval. The reconciliation workflow executes: preflight, atomic apply, verification.
 10. The timeline updates to show all 9 steps as `succeeded`. The run status reads `succeeded`. Findings are empty. Plan shows the same target but with the reconciliation decision `approved`.
 11. The observed file at `apps/api/data/service-config.observed.json` now contains `api:v2`, `3` replicas, and `LOG_LEVEL: "info"`. The `runtimePid` and `healthCheckedAt` fields are preserved.
 
@@ -57,7 +65,7 @@ The web app binds to `http://127.0.0.1:3000` by default.
    - `/timeout` — missing (desired value exists in schema, absent from documentation)
    - `/legacy_mode` — extra (present in documentation, absent from schema)
 4. The plan target shows the corrected table with both `retries` and `timeout`.
-5. Approve. On success, the managed Markdown table at `apps/api/data/config-reference.md` contains both settings and `legacy_mode` is removed.
+5. Approve. A green notification confirms the decision. On success, the managed Markdown table at `apps/api/data/config-reference.md` contains both settings and `legacy_mode` is removed.
 
 ## Failure path — stale remediation plan
 

@@ -11,14 +11,14 @@ import { approveRun } from "./state-machine.js";
 import { WorkflowExecutor } from "./workflow-executor.js";
 
 describe("WorkflowExecutor", () => {
-  it("persists a complete deterministic service-config drift scan", () => {
+  it("persists a complete deterministic service-config drift scan", async () => {
     const handle = createDatabase(":memory:");
     const repository = new PersistenceRepository(handle.db);
     const environment = repository.seedServiceConfigEnvironment();
     const run = repository.createQueuedRun(environment.id);
     const adapter = new ServiceConfigAdapter(createObservedPath());
 
-    const snapshot = new WorkflowExecutor(repository, adapter).execute(run.id);
+    const snapshot = await new WorkflowExecutor(repository, adapter).execute(run.id);
 
     expect(snapshot.run).toMatchObject({
       status: "awaiting_approval",
@@ -60,14 +60,14 @@ describe("WorkflowExecutor", () => {
     handle.close();
   });
 
-  it("persists a complete deterministic structured-documentation drift scan", () => {
+  it("persists a complete deterministic structured-documentation drift scan", async () => {
     const handle = createDatabase(":memory:");
     const repository = new PersistenceRepository(handle.db);
     const environment = repository.seedDocumentationEnvironment();
     const run = repository.createQueuedRun(environment.id);
     const adapter = new DocumentationAdapter(createObservedPath());
 
-    const snapshot = new WorkflowExecutor(repository, adapter).execute(run.id);
+    const snapshot = await new WorkflowExecutor(repository, adapter).execute(run.id);
 
     expect(snapshot.run).toMatchObject({
       status: "awaiting_approval",
@@ -90,7 +90,7 @@ describe("WorkflowExecutor", () => {
     handle.close();
   });
 
-  it("applies an approved documentation plan atomically and verifies convergence", () => {
+  it("applies an approved documentation plan atomically and verifies convergence", async () => {
     const handle = createDatabase(":memory:");
     const repository = new PersistenceRepository(handle.db);
     const environment = repository.seedDocumentationEnvironment();
@@ -99,7 +99,7 @@ describe("WorkflowExecutor", () => {
     const adapter = new DocumentationAdapter(observedPath);
     const executor = new WorkflowExecutor(repository, adapter);
 
-    executor.execute(run.id);
+    await executor.execute(run.id);
     repository.recordDecision({
       runId: run.id,
       action: "approved",
@@ -107,7 +107,7 @@ describe("WorkflowExecutor", () => {
       comment: null,
     });
     approveRun(repository, run.id);
-    const reconciled = executor.executeReconciliation(run.id);
+    const reconciled = await executor.executeReconciliation(run.id);
 
     expect(reconciled.run.status).toBe("succeeded");
     expect(reconciled.findings).toEqual([]);
@@ -118,7 +118,7 @@ describe("WorkflowExecutor", () => {
     handle.close();
   });
 
-  it("applies an approved plan atomically and verifies convergence", () => {
+  it("applies an approved plan atomically and verifies convergence", async () => {
     const handle = createDatabase(":memory:");
     const repository = new PersistenceRepository(handle.db);
     const environment = repository.seedServiceConfigEnvironment();
@@ -127,7 +127,7 @@ describe("WorkflowExecutor", () => {
     const adapter = new ServiceConfigAdapter(observedPath);
     const executor = new WorkflowExecutor(repository, adapter);
 
-    executor.execute(run.id);
+    await executor.execute(run.id);
     repository.recordDecision({
       runId: run.id,
       action: "approved",
@@ -135,7 +135,7 @@ describe("WorkflowExecutor", () => {
       comment: null,
     });
     approveRun(repository, run.id);
-    const reconciled = executor.executeReconciliation(run.id);
+    const reconciled = await executor.executeReconciliation(run.id);
 
     expect(reconciled.run.status).toBe("succeeded");
     expect(reconciled.run.findingCount).toBe(0);
@@ -164,7 +164,7 @@ describe("WorkflowExecutor", () => {
     handle.close();
   });
 
-  it("fails safely when the observed digest changed after plan generation", () => {
+  it("fails safely when the observed digest changed after plan generation", async () => {
     const handle = createDatabase(":memory:");
     const repository = new PersistenceRepository(handle.db);
     const environment = repository.seedServiceConfigEnvironment();
@@ -173,7 +173,7 @@ describe("WorkflowExecutor", () => {
     const adapter = new ServiceConfigAdapter(observedPath);
     const executor = new WorkflowExecutor(repository, adapter);
 
-    executor.execute(run.id);
+    await executor.execute(run.id);
     writeFileSync(
       observedPath,
       `${JSON.stringify({
@@ -194,7 +194,7 @@ describe("WorkflowExecutor", () => {
       comment: null,
     });
     approveRun(repository, run.id);
-    const failed = executor.executeReconciliation(run.id);
+    const failed = await executor.executeReconciliation(run.id);
 
     expect(failed.run.status).toBe("failed");
     expect(failed.run.error).toMatchObject({ code: "stale_remediation_plan" });
@@ -210,7 +210,7 @@ describe("WorkflowExecutor", () => {
     handle.close();
   });
 
-  it("fails invalid canonical state before reading observed state or building a plan", () => {
+  it("fails invalid canonical state before reading observed state or building a plan", async () => {
     const handle = createDatabase(":memory:");
     const repository = new PersistenceRepository(handle.db);
     const environment = repository.seedServiceConfigEnvironment();
@@ -218,7 +218,7 @@ describe("WorkflowExecutor", () => {
     const observedPath = createObservedPath();
     const adapter = new InvalidCanonicalAdapter(observedPath);
 
-    const failed = new WorkflowExecutor(repository, adapter).execute(run.id);
+    const failed = await new WorkflowExecutor(repository, adapter).execute(run.id);
 
     expect(failed.run.status).toBe("failed");
     expect(failed.run.error).toMatchObject({ code: "validation_failed" });
@@ -234,7 +234,7 @@ describe("WorkflowExecutor", () => {
     handle.close();
   });
 
-  it("fails malformed observed state before plan generation or mutation", () => {
+  it("fails malformed observed state before plan generation or mutation", async () => {
     const handle = createDatabase(":memory:");
     const repository = new PersistenceRepository(handle.db);
     const environment = repository.seedServiceConfigEnvironment();
@@ -242,9 +242,10 @@ describe("WorkflowExecutor", () => {
     const observedPath = createObservedPath();
     writeFileSync(observedPath, "{", "utf8");
 
-    const failed = new WorkflowExecutor(repository, new ServiceConfigAdapter(observedPath)).execute(
-      run.id,
-    );
+    const failed = await new WorkflowExecutor(
+      repository,
+      new ServiceConfigAdapter(observedPath),
+    ).execute(run.id);
 
     expect(failed.run.status).toBe("failed");
     expect(failed.run.error).toMatchObject({ code: "workflow_failed" });
@@ -260,7 +261,7 @@ describe("WorkflowExecutor", () => {
     handle.close();
   });
 
-  it("fails safely when the atomic apply step throws", () => {
+  it("fails safely when the atomic apply step throws", async () => {
     const handle = createDatabase(":memory:");
     const repository = new PersistenceRepository(handle.db);
     const environment = repository.seedServiceConfigEnvironment();
@@ -269,7 +270,7 @@ describe("WorkflowExecutor", () => {
     const adapter = new AtomicFailureAdapter(observedPath);
     const executor = new WorkflowExecutor(repository, adapter);
 
-    executor.execute(run.id);
+    await executor.execute(run.id);
     repository.recordDecision({
       runId: run.id,
       action: "approved",
@@ -277,7 +278,7 @@ describe("WorkflowExecutor", () => {
       comment: null,
     });
     approveRun(repository, run.id);
-    const failed = executor.executeReconciliation(run.id);
+    const failed = await executor.executeReconciliation(run.id);
 
     expect(failed.run.status).toBe("failed");
     expect(failed.steps.find((step) => step.key === "apply_reconciliation")).toMatchObject({
@@ -292,7 +293,7 @@ describe("WorkflowExecutor", () => {
     handle.close();
   });
 
-  it("fails verification when the observed state does not converge after apply", () => {
+  it("fails verification when the observed state does not converge after apply", async () => {
     const handle = createDatabase(":memory:");
     const repository = new PersistenceRepository(handle.db);
     const environment = repository.seedServiceConfigEnvironment();
@@ -301,7 +302,7 @@ describe("WorkflowExecutor", () => {
     const adapter = new VerificationMismatchAdapter(observedPath);
     const executor = new WorkflowExecutor(repository, adapter);
 
-    executor.execute(run.id);
+    await executor.execute(run.id);
     repository.recordDecision({
       runId: run.id,
       action: "approved",
@@ -309,7 +310,7 @@ describe("WorkflowExecutor", () => {
       comment: null,
     });
     approveRun(repository, run.id);
-    const failed = executor.executeReconciliation(run.id);
+    const failed = await executor.executeReconciliation(run.id);
 
     expect(failed.run.status).toBe("failed");
     expect(failed.steps.find((step) => step.key === "apply_reconciliation")).toMatchObject({

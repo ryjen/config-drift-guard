@@ -6,6 +6,7 @@
   "packageManager": "pnpm@10.13.1",
   "scripts": {
     "dev": "corepack pnpm --parallel --filter @config-drift-guard/api --filter @config-drift-guard/web dev",
+    "demo": "QUEUE_DELAY_MS=2000 PHASE_DELAY_MS=500 corepack pnpm dev",
     "build": "corepack pnpm -r build",
     "test": "corepack pnpm -r test",
     "typecheck": "corepack pnpm -r typecheck",

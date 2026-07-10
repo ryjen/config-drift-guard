@@ -8,6 +8,8 @@ It models drift analysis as an explicit, persisted workflow so operators can ini
 
 Milestones 1 through 9 have landed. The repository is an evaluator-ready vertical slice with a strict pnpm TypeScript workspace, Fastify API, Next.js web app, contracts package, pure drift-engine package, Biome, Vitest, root verification scripts, shared Zod contracts, SQLite persistence through Drizzle, deterministic normalized-state comparison, end-to-end persisted service-config and structured-documentation drift scans, compact SSE progress notifications, approval-gated reconciliation with verification, startup recovery for interrupted runs, reset behavior, failure-scenario hardening tests, architecture and trade-off documentation, and a complete AI interaction log.
 
+Recent additions include cross-origin SSE with reflected `Access-Control-Allow-Origin`, 15-second heartbeat keepalive, configurable simulated delays for demo mode, and instant approve/reject success notifications in the operator console.
+
 Implemented behavior is intentionally narrow:
 
 - `apps/api` exposes `GET /health`, `GET /api/environments`, `POST /api/environments/:id/reset`, `POST /api/environments/:id/runs`, `GET /api/runs/:runId`, `GET /api/runs/:runId/events`, `POST /api/runs/:runId/approve`, and `POST /api/runs/:runId/reject`, and binds to `127.0.0.1` by default.
@@ -20,7 +22,7 @@ Implemented behavior is intentionally narrow:
 - `packages/contracts` defines Zod-validated contracts for environments, runs, steps, findings, remediation plans, decisions, events, and REST run snapshots.
 - `packages/drift-engine` implements pure normalized-state comparison over adapter-managed fields, deterministic ordering, stable JSON-pointer-like paths, severity classification, SHA-256 canonical digests, and complete target-state generation.
 - Persistence includes environments, runs, steps, findings, remediation plans, local-operator decisions, and events, with repository reads validating persisted JSON through shared schemas.
-- SSE supports compact run-change notifications and `Last-Event-ID` replay; REST run snapshots remain authoritative and the UI refetches snapshots on notifications.
+- SSE supports cross-origin connections with reflected `Access-Control-Allow-Origin`, 15-second heartbeat keepalive, compact run-change notifications, and `Last-Event-ID` replay; REST run snapshots remain authoritative and the UI refetches snapshots on notifications.
 - Approval/rejection APIs persist one immutable decision per run; repeated same decisions are idempotent and contradictory decisions return `409`.
 - Reconciliation re-reads observed state before mutation, fails safely with `stale_remediation_plan` if the digest changed, validates a complete target document, writes through a same-directory temporary file plus atomic rename, and verifies convergence with a post-write scan.
 - API startup marks interrupted queued/running runs as failed with `startup_recovery`, fails the active step when known, and skips pending steps so stale in-process work is not resumed unsafely.
@@ -33,6 +35,14 @@ corepack pnpm install
 corepack pnpm check
 corepack pnpm dev
 ```
+
+For a demo with visible delays between workflow phases:
+
+```bash
+corepack pnpm demo
+```
+
+This sets `QUEUE_DELAY_MS=2000` and `PHASE_DELAY_MS=500` so the operator console shows each transition clearly.
 
 The API defaults to `http://127.0.0.1:4000` and the web app defaults to `http://127.0.0.1:3000`.
 
@@ -87,10 +97,10 @@ An optional future AI layer may explain findings or suggest investigation steps 
 - adapter-scoped managed fields;
 - persisted run and step state;
 - REST snapshots as the source of truth;
-- minimal SSE progress notification;
+- cross-origin SSE with heartbeat keepalive;
 - evidence digests and provenance;
 - generated, immutable remediation plans;
-- approval as an enforced state transition;
+- approval as an enforced state transition with instant operator feedback;
 - stale-plan detection;
 - atomic writes;
 - post-write verification.

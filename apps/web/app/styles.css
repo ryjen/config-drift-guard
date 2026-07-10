@@ -335,6 +335,11 @@ pre {
   font-weight: 800;
 }
 
+.noticeText {
+  color: #067647;
+  font-weight: 600;
+}
+
 @media (max-width: 820px) {
   .shell {
     padding: 18px;
