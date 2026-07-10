@@ -174,3 +174,57 @@ The assistant read the required docs, inspected the workspace, added Zod contrac
 ### Result and remaining risks
 
 Shared contracts and SQLite persistence are in place. Remaining product risks are deterministic drift-engine behavior, explicit state machine, explicit workflow executor, run-detail snapshots, SSE notifications, immutable plan generation from actual drift, approval-gated reconciliation, stale-plan validation, atomic apply, and verification.
+
+## Session 03 — Deterministic Drift Engine
+
+**Date:** 2026-07-10
+**Tool/model:** OpenCode, gpt-5.5
+**Milestone:** Milestone 3 — Pure drift engine
+**Commit:** Pending at time of entry; expected message `feat: implement deterministic configuration drift engine`.
+
+### Objective
+
+Implement the pure normalized-state comparison engine for the primary service-configuration scenario without adding runtime AI, HTTP, database, filesystem, React, state-machine, executor, SSE, or reconciliation code.
+
+### Complete prompt
+
+The user requested work in the current repository, required reading `README.md`, `docs/CURRENT-UNDERSTANDING.md`, `docs/PLAN.md`, and `docs/DECISIONS.md`, and asked for an evaluator-ready vertical slice with strict TypeScript, deterministic drift detection, a pure drift engine, adapter-managed fields only, immutable server-side plans later, approval/stale-plan/atomic/verification constraints for later reconciliation, documentation updates for implementation divergence, checks before commit, and commit message `feat: implement deterministic configuration drift engine`. The specific implementation requirements were deterministic ordering, added/removed/changed findings, stable JSON-pointer-like paths, no mutation of caller-owned data, adapter-provided managed fields, severity classification, SHA-256 canonical digests, complete target-state generation, comprehensive tests, and a service-config scenario with exactly `/image`, `/replicas`, and `/environment/LOG_LEVEL` changed while ignoring `runtimePid`.
+
+### Complete interaction
+
+The assistant read the required docs, inspected the workspace and drift-engine placeholder, implemented a pure TypeScript drift-engine API, added deterministic canonical JSON stringification and SHA-256 digests, compared only managed top-level fields recursively, emitted stable pointer-style paths, classified severity with service-config defaults and an override hook, generated complete target state by overlaying canonical managed fields onto observed state, preserved unmanaged fields, added unit tests, fixed strict TypeScript narrowing issues, and updated README implementation status.
+
+### Author decisions
+
+- Keep the milestone limited to `packages/drift-engine` plus documentation updates.
+- Use adapter-provided top-level managed fields so service adapters can own `image`, `replicas`, and `environment` while ignoring runtime metadata.
+- Use adapter-provided managed-field order for top-level findings and lexicographic ordering for nested object keys to make finding order and sequence stable.
+- Use `sha256:`-prefixed canonical JSON digests for normalized managed state and generated targets.
+
+### Accepted suggestions
+
+- Add explicit finding kinds for `added`, `removed`, and `changed` inside the pure engine.
+- Add default severity policy for the service-config fields and allow callers to supply a deterministic policy override.
+- Deep-clone returned finding values and target data to avoid mutating caller-owned inputs.
+- Preserve unmanaged observed fields when generating a complete remediation target.
+
+### Rejected suggestions
+
+- No runtime AI was added.
+- No HTTP, database, filesystem, React, state-machine, executor, SSE, approval, or reconciliation implementation was added in this milestone.
+- No generic workflow framework or broad adapter plugin system was introduced.
+
+### Corrections
+
+- `rtk` was unavailable in the shell, so commands were run directly with `corepack pnpm`.
+- Strict TypeScript initially rejected one readonly test mutation and one JSON-object narrowing case; both were corrected without weakening compiler settings.
+
+### Verification
+
+- `corepack pnpm --filter @config-drift-guard/drift-engine test` passed.
+- `corepack pnpm --filter @config-drift-guard/drift-engine typecheck` passed after corrections.
+- Full repository checks are run before committing.
+
+### Result and remaining risks
+
+The pure deterministic drift engine is implemented and tested. Remaining product risks are integration with the service-config adapter, explicit run state machine, explicit workflow executor, persisted run snapshots using this engine, SSE refetch notifications, approval-gated reconciliation, stale-plan validation, atomic apply, and verification convergence.

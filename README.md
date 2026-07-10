@@ -6,7 +6,7 @@ It models drift analysis as an explicit, persisted workflow so operators can ini
 
 ## Current status
 
-Milestone 2 has landed: the repository now has a strict pnpm TypeScript workspace with Fastify API, Next.js web app, contracts package, drift-engine package placeholder, Biome, Vitest, root verification scripts, shared Zod contracts, and SQLite persistence through Drizzle.
+Milestone 3 has landed: the repository now has a strict pnpm TypeScript workspace with Fastify API, Next.js web app, contracts package, pure drift-engine package, Biome, Vitest, root verification scripts, shared Zod contracts, SQLite persistence through Drizzle, and deterministic normalized-state comparison.
 
 Implemented behavior is intentionally narrow:
 
@@ -15,9 +15,9 @@ Implemented behavior is intentionally narrow:
 - API CORS allows local browser origins only.
 - `apps/web` renders a basic connectivity page that reads API health from the server side.
 - `packages/contracts` defines Zod-validated contracts for environments, runs, steps, findings, remediation plans, decisions, events, and REST run snapshots.
-- `packages/drift-engine` is present as a pure package boundary but does not implement drift behavior yet.
+- `packages/drift-engine` implements pure normalized-state comparison over adapter-managed fields, deterministic ordering, stable JSON-pointer-like paths, severity classification, SHA-256 canonical digests, and complete target-state generation.
 - Persistence includes environments, runs, steps, findings, remediation plans, decisions, and events, with repository reads validating persisted JSON through shared schemas.
-- Domain drift detection, workflow execution, SSE, remediation, and reconciliation are not implemented yet.
+- Workflow execution, SSE, API-integrated remediation, and reconciliation are not implemented yet.
 
 ## Local development
 
