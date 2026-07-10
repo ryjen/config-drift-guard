@@ -70,7 +70,7 @@ Record:
 **Date:** 2026-07-10
 **Tool/model:** OpenCode, gpt-5.5
 **Milestone:** Milestone 1 — Workspace foundation
-**Commit:** Pending at time of entry; expected message `chore: initialize TypeScript workspace and development tooling`.
+**Commit:** `5cf81ae` — `chore: initialize TypeScript workspace and development tooling`
 
 ### Objective
 
@@ -124,7 +124,7 @@ The workspace foundation is in place and intentionally does not claim domain rea
 **Date:** 2026-07-10
 **Tool/model:** OpenCode, gpt-5.5
 **Milestone:** Milestone 2 — Persistence and contracts
-**Commit:** Pending at time of entry; expected message `feat: define shared contracts and SQLite persistence`.
+**Commit:** `9f18cfa` — `feat: define shared contracts and SQLite persistence`
 
 ### Objective
 
@@ -180,7 +180,7 @@ Shared contracts and SQLite persistence are in place. Remaining product risks ar
 **Date:** 2026-07-10
 **Tool/model:** OpenCode, gpt-5.5
 **Milestone:** Milestone 3 — Pure drift engine
-**Commit:** Pending at time of entry; expected message `feat: implement deterministic configuration drift engine`.
+**Commit:** `aee5686` — `feat: implement deterministic configuration drift engine`
 
 ### Objective
 
@@ -234,7 +234,7 @@ The pure deterministic drift engine is implemented and tested. Remaining product
 **Date:** 2026-07-10
 **Tool/model:** OpenCode, gpt-5.5
 **Milestone:** Milestone 4 — First end-to-end slice
-**Commit:** Pending at time of entry; expected message `feat: execute and display persisted drift scans`.
+**Commit:** `904a2e3` — `feat: execute and display persisted drift scans`
 
 ### Objective
 
@@ -287,7 +287,7 @@ The evaluator can start a persisted service-config drift scan from the browser, 
 **Date:** 2026-07-10
 **Tool/model:** OpenCode, gpt-5.5
 **Milestone:** Milestone 5 — Live progress
-**Commit:** Pending at time of entry; expected message `feat: stream workflow progress with server-sent events`.
+**Commit:** `d9c8c27` — `feat: stream workflow progress with server-sent events`
 
 ### Objective
 
@@ -338,7 +338,7 @@ The UI can subscribe to compact run-change notifications, reconnect with browser
 **Date:** 2026-07-10
 **Tool/model:** OpenCode, gpt-5.5
 **Milestone:** Milestone 6 — Approval and reconciliation
-**Commit:** Pending at time of entry; expected message `feat: add approval-gated reconciliation and verification`.
+**Commit:** `804191b` — `feat: add approval-gated reconciliation and verification`
 
 ### Objective
 
@@ -392,7 +392,7 @@ Approval-gated reconciliation is implemented for the primary service-config scen
 **Date:** 2026-07-10
 **Tool/model:** OpenCode, gpt-5.5
 **Milestone:** Milestone 7 — Documentation drift
-**Commit:** Pending at time of entry; expected message `feat: detect structured documentation drift`.
+**Commit:** `e83fc19` — `feat: detect structured documentation drift`
 
 ### Objective
 
@@ -445,7 +445,7 @@ Structured documentation drift now uses the same persisted workflow, evidence, i
 **Date:** 2026-07-10
 **Tool/model:** OpenCode, gpt-5.5
 **Milestone:** Milestone 8 — Failure hardening
-**Commit:** Pending at time of entry; expected message `test: cover workflow transitions and failure scenarios`.
+**Commit:** `76a87e8` — `test: cover workflow transitions and failure scenarios`
 
 ### Objective
 

@@ -6,7 +6,7 @@ It models drift analysis as an explicit, persisted workflow so operators can ini
 
 ## Current status
 
-Milestone 8 has landed: the repository now has a strict pnpm TypeScript workspace with Fastify API, Next.js web app, contracts package, pure drift-engine package, Biome, Vitest, root verification scripts, shared Zod contracts, SQLite persistence through Drizzle, deterministic normalized-state comparison, end-to-end persisted service-config and structured-documentation drift scans, compact SSE progress notifications, approval-gated reconciliation with verification, startup recovery for interrupted runs, reset behavior, and failure-scenario hardening tests.
+Milestones 1 through 9 have landed. The repository is an evaluator-ready vertical slice with a strict pnpm TypeScript workspace, Fastify API, Next.js web app, contracts package, pure drift-engine package, Biome, Vitest, root verification scripts, shared Zod contracts, SQLite persistence through Drizzle, deterministic normalized-state comparison, end-to-end persisted service-config and structured-documentation drift scans, compact SSE progress notifications, approval-gated reconciliation with verification, startup recovery for interrupted runs, reset behavior, failure-scenario hardening tests, architecture and trade-off documentation, and a complete AI interaction log.
 
 Implemented behavior is intentionally narrow:
 
@@ -42,7 +42,7 @@ The authoritative product understanding and delivery plan are maintained in:
 - [`docs/PLAN.md`](docs/PLAN.md)
 - [`docs/DECISIONS.md`](docs/DECISIONS.md)
 
-Implementation claims in this README must be updated as milestones land.
+Implementation claims in this README must be updated as milestones land. All claims below describe implemented behavior unless explicitly marked as planned.
 
 ## Product model
 
@@ -135,9 +135,12 @@ The project demonstrates:
 
 ## Documentation
 
+- [Architecture](docs/ARCHITECTURE.md)
 - [Current understanding](docs/CURRENT-UNDERSTANDING.md)
 - [Project plan](docs/PLAN.md)
 - [Architectural decisions](docs/DECISIONS.md)
+- [Trade-offs](docs/TRADE-OFFS.md)
+- [Demo walkthrough](docs/DEMO.md)
 - [Codex prompts](docs/CODEX-PROMPTS.md)
 - [AI interaction log](docs/AI-INTERACTION-LOG.md)
 
@@ -145,4 +148,4 @@ The project demonstrates:
 
 AI is used for planning, implementation acceleration, review, testing, threat modeling, and documentation reconciliation.
 
-The complete interaction record must preserve accepted suggestions, rejected suggestions, corrections, and human verification.
+The complete interaction record must preserve accepted suggestions, rejected suggestions, corrections, and human verification. All interaction sessions are recorded in [`docs/AI-INTERACTION-LOG.md`](docs/AI-INTERACTION-LOG.md).

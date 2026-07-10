@@ -281,10 +281,10 @@ The generated remediation target updates the managed table or generated block.
 ### Environments
 
 ```http
-GET  /api/environments
-GET  /api/environments/:environmentId
-POST /api/environments/:environmentId/reset
-GET  /api/environments/:environmentId/runs
+GET  /api/environments                          ✅ implemented
+GET  /api/environments/:environmentId           ❌ not implemented (narrow slice)
+POST /api/environments/:environmentId/reset     ✅ implemented
+GET  /api/environments/:environmentId/runs      ❌ not implemented (narrow slice)
 ```
 
 ### Runs
@@ -347,7 +347,9 @@ Use native controls and restrained styling. The experience should be operational
 
 **Exit:** implementation sequence confirmed.
 
-### Milestone 1 — Workspace foundation
+### Milestone 1 — Workspace foundation — LANDED
+
+**Commit:** `chore: initialize TypeScript workspace and development tooling` (sha `5cf81ae`)
 
 - pnpm workspace;
 - Fastify API;
@@ -361,11 +363,11 @@ Use native controls and restrained styling. The experience should be operational
 - health endpoint;
 - basic connectivity page.
 
-**Commit:** `chore: initialize TypeScript workspace and development tooling`
-
 **Exit:** `pnpm check` passes and both services start.
 
-### Milestone 2 — Persistence and contracts
+### Milestone 2 — Persistence and contracts — LANDED
+
+**Commit:** `feat: define shared contracts and SQLite persistence` (sha `9f18cfa`)
 
 - SQLite and Drizzle;
 - migrations;
@@ -374,11 +376,11 @@ Use native controls and restrained styling. The experience should be operational
 - seeded environment metadata;
 - repository tests.
 
-**Commit:** `feat: define shared contracts and SQLite persistence`
-
 **Exit:** repository state round-trips correctly and local DB is reproducible.
 
-### Milestone 3 — Pure drift engine
+### Milestone 3 — Pure drift engine — LANDED
+
+**Commit:** `feat: implement deterministic configuration drift engine` (sha `aee5686`)
 
 - normalized-state model;
 - deterministic recursive comparison;
@@ -388,11 +390,11 @@ Use native controls and restrained styling. The experience should be operational
 - digests;
 - comprehensive unit tests.
 
-**Commit:** `feat: implement deterministic configuration drift engine`
-
 **Exit:** service scenario emits exactly three expected findings.
 
-### Milestone 4 — First end-to-end slice
+### Milestone 4 — First end-to-end slice — LANDED
+
+**Commit:** `feat: execute and display persisted drift scans` (sha `904a2e3`)
 
 - local service-config adapter;
 - run state machine;
@@ -405,11 +407,11 @@ Use native controls and restrained styling. The experience should be operational
 
 Synchronous or simple in-process background execution is acceptable.
 
-**Commit:** `feat: execute and display persisted drift scans`
-
 **Exit:** evaluator can run a scan from the browser and refresh without losing state.
 
-### Milestone 5 — Live progress
+### Milestone 5 — Live progress — LANDED
+
+**Commit:** `feat: stream workflow progress with server-sent events` (sha `d9c8c27`)
 
 - persisted events;
 - minimal SSE;
@@ -418,11 +420,11 @@ Synchronous or simple in-process background execution is acceptable.
 - event log;
 - reconnect/reload correctness.
 
-**Commit:** `feat: stream workflow progress with server-sent events`
-
 **Exit:** progress is visible without client-side state-machine duplication.
 
-### Milestone 6 — Approval and reconciliation
+### Milestone 6 — Approval and reconciliation — LANDED
+
+**Commit:** `feat: add approval-gated reconciliation and verification` (sha `804191b`)
 
 - immutable plan;
 - approval/rejection;
@@ -431,11 +433,11 @@ Synchronous or simple in-process background execution is acceptable.
 - verification scan;
 - UI controls.
 
-**Commit:** `feat: add approval-gated reconciliation and verification`
-
 **Exit:** approved service drift converges; rejected runs remain terminal.
 
-### Milestone 7 — Documentation drift
+### Milestone 7 — Documentation drift — LANDED
+
+**Commit:** `feat: detect structured documentation drift` (sha `e83fc19`)
 
 - schema-to-Markdown-table adapter or managed generated block;
 - second seeded environment;
@@ -444,13 +446,11 @@ Synchronous or simple in-process background execution is acceptable.
 - adapter tests;
 - shared UI presentation.
 
-**Commit:** `feat: detect structured documentation drift`
-
 **Exit:** the same workflow detects and can reconcile documentation drift.
 
-This milestone is optional if core quality is at risk, but it is the preferred secondary scenario because it proves the adapter model and connects naturally to Meristem.
+### Milestone 8 — Failure hardening — LANDED
 
-### Milestone 8 — Failure hardening
+**Commit:** `test: cover workflow transitions and failure scenarios` (sha `76a87e8`)
 
 - invalid canonical state;
 - malformed observed state;
@@ -460,23 +460,20 @@ This milestone is optional if core quality is at risk, but it is the preferred s
 - restart recovery;
 - complete state-transition tests.
 
-**Commit:** `test: cover workflow transitions and failure scenarios`
-
 **Exit:** failures are attached to the correct step, no unsafe mutation occurs, and pending steps are skipped.
 
-### Milestone 9 — Documentation and submission
+### Milestone 9 — Documentation and submission — LANDED
+
+**Commit:** `docs: finalize architecture, trade-offs, and AI usage` (sha pending)
 
 - README reconciled to actual behavior;
 - architecture document;
 - decisions;
 - trade-offs;
 - current understanding;
-- demo script;
-- AI interaction log;
-- screenshots/GIF;
+- demo walkthrough;
+- AI interaction log with commit SHAs;
 - clean setup verification.
-
-**Commit:** `docs: finalize architecture, trade-offs, and AI usage`
 
 **Exit:** fresh-clone instructions work and no aspirational claims remain.
 

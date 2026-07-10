@@ -112,7 +112,7 @@ The architecture supports adapters. The initial implementation should remain nar
 
 Canonical input:
 
-- YAML desired state.
+- In-memory seeded JavaScript object (structural equivalent of YAML desired state).
 
 Observed input:
 
@@ -211,7 +211,7 @@ An optional future AI feature could explain findings or suggest investigation st
 
 ## Product scope
 
-### Required
+### Required (all implemented)
 
 - Next.js operator UI;
 - TypeScript API;
@@ -219,17 +219,17 @@ An optional future AI feature could explain findings or suggest investigation st
 - deterministic drift engine;
 - explicit run state machine;
 - one primary service-config scenario;
-- documentation-drift adapter or scenario if time permits;
+- documentation-drift adapter;
 - step-level progress;
 - REST run snapshot;
-- minimal SSE or polling;
+- minimal SSE;
 - findings and immutable remediation plan;
 - approval and rejection;
 - safe reconciliation;
 - verification;
 - failure scenarios;
 - tests;
-- README and architecture docs;
+- README, architecture, trade-off, and demo docs;
 - meaningful commit history;
 - complete AI interaction log.
 
