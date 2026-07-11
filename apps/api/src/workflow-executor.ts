@@ -5,9 +5,14 @@ import {
   type DriftFinding,
   digestJson,
   digestNormalizedResourceState,
+  type NormalizedResourceState,
 } from "@config-drift-guard/drift-engine";
 import { ZodError } from "zod";
-import { ServiceConfigAdapter, StaleRemediationPlanError } from "./adapters/service-config.js";
+import {
+  type ApplyResult,
+  ServiceConfigAdapter,
+  StaleRemediationPlanError,
+} from "./adapters/service-config.js";
 import {
   completeStep,
   failRun,
@@ -36,15 +41,18 @@ export interface DriftAdapter {
   loadCanonical(): JsonValue;
   loadObserved(): JsonValue;
   validateCanonical(input: JsonValue): void;
-  normalizeCanonical(input: JsonValue): ReturnType<ServiceConfigAdapter["normalizeCanonical"]>;
-  normalizeObserved(
-    input: JsonValue,
-    resourceId: string,
-  ): ReturnType<ServiceConfigAdapter["normalizeObserved"]>;
-  applyTarget(
-    expectedObservedDigest: string,
-    target: JsonValue,
-  ): ReturnType<ServiceConfigAdapter["applyTarget"]>;
+  normalizeCanonical(input: JsonValue): NormalizedResourceState;
+  normalizeObserved(input: JsonValue, resourceId: string): NormalizedResourceState;
+  applyTarget(expectedObservedDigest: string, target: JsonValue): ApplyResult;
+}
+
+export class StaleCanonicalStateError extends Error {
+  constructor(
+    readonly expectedCanonicalDigest: string,
+    readonly currentCanonicalDigest: string,
+  ) {
+    super("stale_canonical_state");
+  }
 }
 
 function delay(ms: number): Promise<void> {
@@ -94,7 +102,7 @@ export class WorkflowExecutor {
       startStep(this.repository, runId, activeStep);
       const canonical = this.adapter.normalizeCanonical(canonicalRaw);
       const observed = this.adapter.normalizeObserved(observedRaw, canonical.resourceId);
-      const canonicalDigest = digestNormalizedResourceState(canonical);
+      const canonicalDigest = digestCanonicalEvidence(canonical);
       const observedDigest = digestNormalizedResourceState(observed);
       completeStep(
         this.repository,
@@ -174,6 +182,11 @@ export class WorkflowExecutor {
       const canonicalRaw = this.adapter.loadCanonical();
       this.adapter.validateCanonical(canonicalRaw);
       const canonical = this.adapter.normalizeCanonical(canonicalRaw);
+      const currentCanonicalDigest = digestCanonicalEvidence(canonical);
+      if (currentCanonicalDigest !== snapshot.plan.canonicalDigest) {
+        throw new StaleCanonicalStateError(snapshot.plan.canonicalDigest, currentCanonicalDigest);
+      }
+
       const observedBefore = this.adapter.normalizeObserved(
         this.adapter.loadObserved(),
         canonical.resourceId,
@@ -195,8 +208,13 @@ export class WorkflowExecutor {
         this.repository,
         runId,
         activeStep,
-        { expectedObservedDigest: snapshot.plan.expectedObservedDigest, currentObservedDigest },
-        "Observed digest matches immutable plan",
+        {
+          expectedCanonicalDigest: snapshot.plan.canonicalDigest,
+          currentCanonicalDigest,
+          expectedObservedDigest: snapshot.plan.expectedObservedDigest,
+          currentObservedDigest,
+        },
+        "Canonical and observed digests match immutable plan",
       );
       await delay(this.phaseDelay);
 
@@ -248,6 +266,14 @@ export class WorkflowExecutor {
   }
 }
 
+function digestCanonicalEvidence(state: NormalizedResourceState): string {
+  return digestJson({
+    resourceId: state.resourceId,
+    managedFields: [...state.managedFields].sort((left, right) => left.localeCompare(right)),
+    managedStateDigest: digestNormalizedResourceState(state),
+  });
+}
+
 function toPersistedFinding(finding: DriftFinding): Omit<Finding, "id" | "runId"> {
   return {
     resourceId: finding.resourceId,
@@ -278,6 +304,17 @@ function severitySummary(findings: readonly DriftFinding[]): JsonValue {
 }
 
 function toErrorEnvelope(error: unknown): ErrorEnvelope {
+  if (error instanceof StaleCanonicalStateError) {
+    return {
+      code: "stale_canonical_state",
+      message: "Canonical state changed after the remediation plan was generated",
+      detail: {
+        expectedCanonicalDigest: error.expectedCanonicalDigest,
+        currentCanonicalDigest: error.currentCanonicalDigest,
+      },
+    };
+  }
+
   if (error instanceof StaleRemediationPlanError) {
     return {
       code: "stale_remediation_plan",
