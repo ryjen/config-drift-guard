@@ -1,7 +1,5 @@
 import type { ApiErrorResponse, JsonValue } from "@config-drift-guard/contracts";
 
-const RETRYABLE_CODES = new Set(["active_run_exists"]);
-
 export function apiError(
   code: string,
   message: string,
@@ -12,7 +10,7 @@ export function apiError(
     error: {
       code,
       message,
-      retryable: RETRYABLE_CODES.has(code),
+      retryable: false,
       requestId,
       detail,
     },
