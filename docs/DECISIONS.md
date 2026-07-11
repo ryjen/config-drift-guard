@@ -123,11 +123,11 @@ This is a lightweight application of Anthesis/Meristem evidence and provenance c
 
 A remediation plan is bound to three digests:
 
-- the canonical-state digest used to construct the target;
+- the canonical-state digest used to construct the target, including resource identity, managed-field ownership, and managed values;
 - the observed-state digest expected immediately before mutation;
 - the target-state digest approved by the operator.
 
-Reconciliation preflight recalculates and verifies all three before invoking an adapter mutation.
+Reconciliation preflight recalculates and verifies all three before invoking an adapter mutation. A resource rename or substitution invalidates the canonical digest even when all managed values are unchanged.
 
 A canonical mismatch produces `stale_canonical_state`. An observed mismatch produces `stale_remediation_plan`. A target mismatch produces `target_integrity_violation`. In every case, no mutation occurs and the expected and current digest evidence is persisted where applicable.
 
