@@ -1,24 +1,32 @@
-import { mkdtempSync, readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { JsonValue } from "@config-drift-guard/contracts";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { ServiceConfigAdapter } from "./adapters/service-config.js";
-import { createDatabase } from "./persistence/database.js";
+import { createDatabase, type DatabaseHandle } from "./persistence/database.js";
 import { PersistenceRepository } from "./persistence/repository.js";
 import { approveRun } from "./state-machine.js";
 import { WorkflowExecutor } from "./workflow-executor.js";
 
 describe("WorkflowExecutor canonical-state preflight", () => {
+  let handle: DatabaseHandle;
+  let tempDir: string;
+
+  afterEach(() => {
+    handle?.close();
+    if (tempDir !== undefined) {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it("rejects an approved plan when canonical state changed after plan generation", async () => {
-    const handle = createDatabase(":memory:");
+    handle = createDatabase(":memory:");
     const repository = new PersistenceRepository(handle.db);
     const environment = repository.seedServiceConfigEnvironment();
     const run = repository.createQueuedRun(environment.id);
-    const observedPath = join(
-      mkdtempSync(join(tmpdir(), "config-drift-guard-canonical-staleness-")),
-      "observed.json",
-    );
+    tempDir = mkdtempSync(join(tmpdir(), "config-drift-guard-canonical-staleness-"));
+    const observedPath = join(tempDir, "observed.json");
     const adapter = new MutableCanonicalAdapter(observedPath);
     const executor = new WorkflowExecutor(repository, adapter);
 
@@ -56,8 +64,6 @@ describe("WorkflowExecutor canonical-state preflight", () => {
       status: "skipped",
     });
     expect(JSON.parse(readFileSync(observedPath, "utf8"))["api-service"].image).toBe("api:v1");
-
-    handle.close();
   });
 });
 

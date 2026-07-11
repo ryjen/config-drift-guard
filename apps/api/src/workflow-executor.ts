@@ -8,7 +8,11 @@ import {
   type NormalizedResourceState,
 } from "@config-drift-guard/drift-engine";
 import { ZodError } from "zod";
-import { ServiceConfigAdapter, StaleRemediationPlanError } from "./adapters/service-config.js";
+import {
+  type ApplyResult,
+  ServiceConfigAdapter,
+  StaleRemediationPlanError,
+} from "./adapters/service-config.js";
 import {
   completeStep,
   failRun,
@@ -30,12 +34,6 @@ interface WorkflowRepository extends RunStateStore {
     readonly engineVersion: string;
   }): unknown;
   getRunSnapshot(runId: string): RunSnapshot;
-}
-
-export interface ApplyResult {
-  readonly observedDigestBefore: string;
-  readonly observedDigestAfter: string;
-  readonly targetDigest: string;
 }
 
 export interface DriftAdapter {
@@ -186,10 +184,7 @@ export class WorkflowExecutor {
       const canonical = this.adapter.normalizeCanonical(canonicalRaw);
       const currentCanonicalDigest = digestNormalizedResourceState(canonical);
       if (currentCanonicalDigest !== snapshot.plan.canonicalDigest) {
-        throw new StaleCanonicalStateError(
-          snapshot.plan.canonicalDigest,
-          currentCanonicalDigest,
-        );
+        throw new StaleCanonicalStateError(snapshot.plan.canonicalDigest, currentCanonicalDigest);
       }
 
       const observedBefore = this.adapter.normalizeObserved(
