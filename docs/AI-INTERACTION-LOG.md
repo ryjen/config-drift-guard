@@ -39,6 +39,7 @@ Complete verbatim chat sessions are in [`docs/ai/`](ai/):
 | 08 — Failure hardening | [`08-failure-hardening.md`](ai/08-failure-hardening.md) |
 | 09 — Documentation and submission | [`09-documentation-submission.md`](ai/09-documentation-submission.md) |
 | 10 — Maintenance | [`10-maintenance.md`](ai/10-maintenance.md) |
+| 11 — P1 correctness fixes | [`11-p1-correctness-fixes.md`](ai/11-p1-correctness-fixes.md) |
 
 ## Important decisions already established
 
