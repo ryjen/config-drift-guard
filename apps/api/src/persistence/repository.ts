@@ -59,6 +59,10 @@ export const workflowSteps: readonly WorkflowStepKey[] = [
 export const serviceConfigEnvironmentId = "env_service_config";
 export const documentationEnvironmentId = "env_documentation";
 
+export function isUniqueConstraintError(error: unknown): boolean {
+  return error instanceof Error && error.message.includes("UNIQUE constraint failed");
+}
+
 function nowIso(): string {
   return new Date().toISOString();
 }

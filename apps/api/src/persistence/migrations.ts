@@ -77,4 +77,8 @@ CREATE TABLE IF NOT EXISTS events (
   payload TEXT NOT NULL,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS runs_one_active_per_env
+  ON runs(environment_id)
+  WHERE status IN ('queued', 'running', 'awaiting_approval');
 `;
