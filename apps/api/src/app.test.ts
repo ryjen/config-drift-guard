@@ -160,7 +160,9 @@ describe("API health", () => {
     });
 
     expect(unsafeResetResponse.statusCode).toBe(400);
-    expect(unsafeResetResponse.json()).toEqual({ error: "invalid_reset_request" });
+    expect(unsafeResetResponse.json()).toMatchObject({
+      error: { code: "invalid_request", retryable: false },
+    });
 
     const resetResponse = await app.inject({
       method: "POST",
@@ -223,7 +225,9 @@ describe("API health", () => {
       payload: {},
     });
     expect(resetResponse.statusCode).toBe(409);
-    expect(resetResponse.json()).toEqual({ error: "active_run_exists" });
+    expect(resetResponse.json()).toMatchObject({
+      error: { code: "active_run_exists", retryable: true },
+    });
 
     await app.close();
     database.close();
@@ -273,7 +277,9 @@ describe("API health", () => {
     });
 
     expect(response.statusCode).toBe(400);
-    expect(response.json()).toEqual({ error: "invalid_decision_request" });
+    expect(response.json()).toMatchObject({
+      error: { code: "invalid_request", retryable: false },
+    });
 
     await app.close();
     database.close();
@@ -316,7 +322,9 @@ describe("API health", () => {
     expect(repeatRejectResponse.statusCode).toBe(200);
     expect(repeatRejectResponse.json().decision.id).toBe(rejectResponse.json().decision.id);
     expect(approveResponse.statusCode).toBe(409);
-    expect(approveResponse.json()).toEqual({ error: "contradictory_decision" });
+    expect(approveResponse.json()).toMatchObject({
+      error: { code: "contradictory_decision", retryable: false },
+    });
 
     await app.close();
     database.close();
@@ -416,7 +424,114 @@ describe("API health", () => {
     const response = await app.inject({ method: "GET", url: "/api/runs/run_missing" });
 
     expect(response.statusCode).toBe(404);
-    expect(response.json()).toEqual({ error: "run_not_found" });
+    expect(response.json()).toMatchObject({
+      error: { code: "run_not_found", retryable: false },
+    });
+
+    await app.close();
+    database.close();
+  });
+
+  it("wraps all error responses in the shared API error envelope", async () => {
+    const database = createDatabase(":memory:");
+    const app = await buildApp({ database, serviceConfigObservedPath: createObservedPath() });
+
+    const cases = [
+      {
+        label: "400 validation error",
+        request: {
+          method: "POST" as const,
+          url: "/api/environments/env_service_config/reset",
+          payload: { bad: true },
+        },
+        expectStatus: 400,
+      },
+      {
+        label: "404 missing run",
+        request: { method: "GET" as const, url: "/api/runs/does_not_exist" },
+        expectStatus: 404,
+      },
+      {
+        label: "409 active run conflict",
+        request: {
+          method: "POST" as const,
+          url: "/api/environments/env_service_config/runs",
+        },
+        expectStatus: 409,
+        setup: async () => {
+          const r = await app.inject({
+            method: "POST",
+            url: "/api/environments/env_service_config/runs",
+          });
+          expect(r.statusCode).toBe(201);
+        },
+      },
+    ];
+
+    for (const testCase of cases) {
+      if (testCase.setup !== undefined) {
+        await testCase.setup();
+      }
+
+      const response = await app.inject(testCase.request);
+      expect(response.statusCode).toBe(testCase.expectStatus);
+      const body = response.json();
+      expect(body).toHaveProperty("error");
+      expect(body.error).toHaveProperty("code");
+      expect(body.error).toHaveProperty("message");
+      expect(body.error).toHaveProperty("retryable");
+      expect(body.error).toHaveProperty("requestId");
+      expect(typeof body.error.code).toBe("string");
+      expect(typeof body.error.message).toBe("string");
+      expect(typeof body.error.retryable).toBe("boolean");
+      expect(typeof body.error.requestId).toBe("string");
+    }
+
+    await app.close();
+    database.close();
+  });
+
+  it("includes X-Request-Id header on every response", async () => {
+    const database = createDatabase(":memory:");
+    const app = await buildApp({ database });
+
+    const successResponse = await app.inject({ method: "GET", url: "/health" });
+    expect(successResponse.headers["x-request-id"]).toBeDefined();
+
+    const errorResponse = await app.inject({ method: "GET", url: "/api/runs/missing" });
+    expect(errorResponse.headers["x-request-id"]).toBeDefined();
+
+    await app.close();
+    database.close();
+  });
+
+  it("rejects decision comments exceeding the maximum length", async () => {
+    const database = createDatabase(":memory:");
+    const app = await buildApp({ database, serviceConfigObservedPath: createObservedPath() });
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/api/environments/env_service_config/runs",
+    });
+    const created = createResponse.json();
+
+    await expect
+      .poll(async () => {
+        const response = await app.inject({ method: "GET", url: `/api/runs/${created.run.id}` });
+        return response.json().run.status;
+      })
+      .toBe("awaiting_approval");
+
+    const longComment = "x".repeat(1001);
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/runs/${created.run.id}/approve`,
+      payload: { comment: longComment },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      error: { code: "invalid_request" },
+    });
 
     await app.close();
     database.close();

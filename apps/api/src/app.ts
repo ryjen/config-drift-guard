@@ -1,5 +1,6 @@
 import {
   type AdapterKind,
+  type ApiErrorResponse,
   type Environment,
   type Event,
   type HealthResponse,
@@ -11,6 +12,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { z } from "zod";
 import { DocumentationAdapter } from "./adapters/documentation.js";
 import { ServiceConfigAdapter } from "./adapters/service-config.js";
+import { apiError, DECISION_COMMENT_MAX_LENGTH } from "./api-error.js";
 import { createDatabase, type DatabaseHandle } from "./persistence/database.js";
 import { PersistenceRepository } from "./persistence/repository.js";
 import { WorkflowExecutor } from "./workflow-executor.js";
@@ -21,7 +23,7 @@ const PHASE_DELAY_MS = Number.parseInt(process.env.PHASE_DELAY_MS ?? "0", 10) ||
 
 const decisionRequestSchema = z
   .object({
-    comment: z.string().trim().min(1).nullable().optional(),
+    comment: z.string().trim().min(1).max(DECISION_COMMENT_MAX_LENGTH).nullable().optional(),
   })
   .strict();
 const emptyRequestSchema = z.object({}).strict();
@@ -71,47 +73,61 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     },
   });
 
+  app.addHook("onSend", async (request, reply) => {
+    reply.header("X-Request-Id", request.id);
+  });
+
   app.get<{ Reply: HealthResponse }>("/health", async () => healthResponse);
   app.get<{ Reply: Environment[] }>("/api/environments", async () => repository.listEnvironments());
 
   app.post<{
     Params: { id: string };
     Body: unknown;
-    Reply: { status: "reset"; environment: Environment } | { error: string };
+    Reply: { status: "reset"; environment: Environment } | ApiErrorResponse;
   }>("/api/environments/:id/reset", async (request, reply) => {
+    const requestId = request.id;
     const parsed = emptyRequestSchema.safeParse(request.body ?? {});
     if (!parsed.success) {
       reply.code(400);
-      return { error: "invalid_reset_request" };
+      return apiError("invalid_request", "Request body must be empty", requestId);
     }
 
     const environment = repository.getEnvironment(request.params.id);
     if (environment === null) {
       reply.code(404);
-      return { error: "environment_not_found" };
+      return apiError("environment_not_found", "Environment not found", requestId);
     }
 
     if (repository.hasActiveRun(environment.id)) {
       reply.code(409);
-      return { error: "active_run_exists" };
+      return apiError(
+        "active_run_exists",
+        "An active run already exists for this environment",
+        requestId,
+      );
     }
 
     adapters[environment.adapterKind].resetObserved();
     return { status: "reset", environment };
   });
 
-  app.post<{ Params: { id: string }; Reply: RunSnapshot | { error: string } }>(
+  app.post<{ Params: { id: string }; Reply: RunSnapshot | ApiErrorResponse }>(
     "/api/environments/:id/runs",
     async (request, reply) => {
+      const requestId = request.id;
       const environment = repository.getEnvironment(request.params.id);
       if (environment === null) {
         reply.code(404);
-        return { error: "environment_not_found" };
+        return apiError("environment_not_found", "Environment not found", requestId);
       }
 
       if (repository.hasActiveRun(environment.id)) {
         reply.code(409);
-        return { error: "active_run_exists" };
+        return apiError(
+          "active_run_exists",
+          "An active run already exists for this environment",
+          requestId,
+        );
       }
 
       const run = repository.createQueuedRun(environment.id);
@@ -129,7 +145,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     },
   );
 
-  app.get<{ Params: { runId: string }; Reply: RunSnapshot | { error: string } }>(
+  app.get<{ Params: { runId: string }; Reply: RunSnapshot | ApiErrorResponse }>(
     "/api/runs/:runId",
     async (request, reply) => {
       try {
@@ -137,7 +153,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       } catch (error) {
         if (error instanceof Error && error.message.startsWith("run_not_found:")) {
           reply.code(404);
-          return { error: "run_not_found" };
+          return apiError("run_not_found", "Run not found", request.id);
         }
 
         throw error;
@@ -148,17 +164,18 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   app.post<{
     Params: { runId: string };
     Body: unknown;
-    Reply: RunSnapshot | { error: string };
+    Reply: RunSnapshot | ApiErrorResponse;
   }>("/api/runs/:runId/approve", async (request, reply) => {
+    const requestId = request.id;
     const parsed = decisionRequestSchema.safeParse(request.body ?? {});
     if (!parsed.success) {
       reply.code(400);
-      return { error: "invalid_decision_request" };
+      return apiError("invalid_request", "Invalid decision request", requestId);
     }
 
-    const snapshot = getSnapshotOrReplyNotFound(repository, request.params.runId, reply);
+    const snapshot = getSnapshotOrReplyNotFound(repository, request.params.runId, reply, requestId);
     if (snapshot === null) {
-      return { error: "run_not_found" };
+      return apiError("run_not_found", "Run not found", requestId);
     }
 
     if (snapshot.decision !== null) {
@@ -166,12 +183,16 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         return snapshot;
       }
       reply.code(409);
-      return { error: "contradictory_decision" };
+      return apiError(
+        "contradictory_decision",
+        "A contradictory decision already exists",
+        requestId,
+      );
     }
 
     if (snapshot.run.status !== "awaiting_approval" || snapshot.plan === null) {
       reply.code(409);
-      return { error: "run_not_awaiting_approval" };
+      return apiError("run_not_awaiting_approval", "Run is not awaiting approval", requestId);
     }
 
     try {
@@ -190,7 +211,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     const environment = repository.getEnvironment(snapshot.run.environmentId);
     if (environment === null) {
       reply.code(404);
-      return { error: "environment_not_found" };
+      return apiError("environment_not_found", "Environment not found", requestId);
     }
     const executor = new WorkflowExecutor(
       repository,
@@ -207,17 +228,18 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   app.post<{
     Params: { runId: string };
     Body: unknown;
-    Reply: RunSnapshot | { error: string };
+    Reply: RunSnapshot | ApiErrorResponse;
   }>("/api/runs/:runId/reject", async (request, reply) => {
+    const requestId = request.id;
     const parsed = decisionRequestSchema.safeParse(request.body ?? {});
     if (!parsed.success) {
       reply.code(400);
-      return { error: "invalid_decision_request" };
+      return apiError("invalid_request", "Invalid decision request", requestId);
     }
 
-    const snapshot = getSnapshotOrReplyNotFound(repository, request.params.runId, reply);
+    const snapshot = getSnapshotOrReplyNotFound(repository, request.params.runId, reply, requestId);
     if (snapshot === null) {
-      return { error: "run_not_found" };
+      return apiError("run_not_found", "Run not found", requestId);
     }
 
     if (snapshot.decision !== null) {
@@ -225,12 +247,16 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         return snapshot;
       }
       reply.code(409);
-      return { error: "contradictory_decision" };
+      return apiError(
+        "contradictory_decision",
+        "A contradictory decision already exists",
+        requestId,
+      );
     }
 
     if (snapshot.run.status !== "awaiting_approval") {
       reply.code(409);
-      return { error: "run_not_awaiting_approval" };
+      return apiError("run_not_awaiting_approval", "Run is not awaiting approval", requestId);
     }
 
     try {
@@ -257,7 +283,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     } catch (error) {
       if (error instanceof Error && error.message.startsWith("run_not_found:")) {
         reply.code(404);
-        return { error: "run_not_found" };
+        return apiError("run_not_found", "Run not found", request.id);
       }
 
       throw error;
@@ -311,6 +337,7 @@ function getSnapshotOrReplyNotFound(
   repository: PersistenceRepository,
   runId: string,
   reply: { code(statusCode: number): unknown },
+  _requestId: string,
 ): RunSnapshot | null {
   try {
     return repository.getRunSnapshot(runId);

@@ -1,6 +1,6 @@
 "use client";
 
-import type { Environment, RunSnapshot } from "@config-drift-guard/contracts";
+import type { ApiErrorResponse, Environment, RunSnapshot } from "@config-drift-guard/contracts";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 
 const lastRunStorageKey = "config-drift-guard:last-run-id";
@@ -92,8 +92,12 @@ export function OperatorConsole({ apiBaseUrl, environments }: OperatorConsolePro
       });
 
       if (!response.ok) {
-        const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-        setError(`${action} failed: ${payload?.error ?? `HTTP ${response.status}`}`);
+        const payload = (await response.json().catch(() => null)) as ApiErrorResponse | null;
+        setError(
+          payload?.error !== undefined
+            ? `${payload.error.message} [${payload.error.code}]`
+            : `Request failed: HTTP ${response.status}`,
+        );
         return;
       }
 
@@ -114,7 +118,12 @@ export function OperatorConsole({ apiBaseUrl, environments }: OperatorConsolePro
       });
 
       if (!response.ok) {
-        setError(`Run failed to start: HTTP ${response.status}`);
+        const payload = (await response.json().catch(() => null)) as ApiErrorResponse | null;
+        setError(
+          payload?.error !== undefined
+            ? `${payload.error.message} [${payload.error.code}]`
+            : `Request failed: HTTP ${response.status}`,
+        );
         return;
       }
 
