@@ -165,6 +165,20 @@ export const eventSchema = z.object({
 });
 export type Event = z.infer<typeof eventSchema>;
 
+export const apiErrorDetailSchema = z.object({
+  code: z.string().min(1),
+  message: z.string().min(1),
+  retryable: z.boolean(),
+  requestId: z.string().min(1),
+  detail: jsonValueSchema.optional(),
+});
+export type ApiErrorDetail = z.infer<typeof apiErrorDetailSchema>;
+
+export const apiErrorResponseSchema = z.object({
+  error: apiErrorDetailSchema,
+});
+export type ApiErrorResponse = z.infer<typeof apiErrorResponseSchema>;
+
 export const runSnapshotSchema = z.object({
   run: runSchema,
   steps: z.array(stepSchema),
