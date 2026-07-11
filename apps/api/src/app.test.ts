@@ -233,6 +233,61 @@ describe("API health", () => {
     database.close();
   });
 
+  it("allows reset after run reaches terminal state", async () => {
+    const database = createDatabase(":memory:");
+    const observedPath = createObservedPath();
+    const app = await buildApp({ database, serviceConfigObservedPath: observedPath });
+    const createResponse = await app.inject({
+      method: "POST",
+      url: "/api/environments/env_service_config/runs",
+    });
+    const created = createResponse.json();
+
+    await expect
+      .poll(async () => {
+        const response = await app.inject({ method: "GET", url: `/api/runs/${created.run.id}` });
+        return response.json().run.status;
+      })
+      .toBe("awaiting_approval");
+
+    const rejectResponse = await app.inject({
+      method: "POST",
+      url: `/api/runs/${created.run.id}/reject`,
+      payload: {},
+    });
+    expect(rejectResponse.statusCode).toBe(200);
+    expect(rejectResponse.json().run.status).toBe("rejected");
+
+    const resetResponse = await app.inject({
+      method: "POST",
+      url: "/api/environments/env_service_config/reset",
+      payload: {},
+    });
+    expect(resetResponse.statusCode).toBe(200);
+    expect(resetResponse.json()).toMatchObject({ status: "reset" });
+
+    await app.close();
+    database.close();
+  });
+
+  it("rejects concurrent start requests with 409", async () => {
+    const database = createDatabase(":memory:");
+    const app = await buildApp({ database, serviceConfigObservedPath: createObservedPath() });
+    const [res1, res2] = await Promise.all([
+      app.inject({ method: "POST", url: "/api/environments/env_service_config/runs" }),
+      app.inject({ method: "POST", url: "/api/environments/env_service_config/runs" }),
+    ]);
+
+    const statuses = [res1.statusCode, res2.statusCode].sort();
+    expect(statuses).toEqual([201, 409]);
+
+    const success = res1.statusCode === 201 ? res1 : res2;
+    expect(success.json().run.status).toBe("queued");
+
+    await app.close();
+    database.close();
+  });
+
   it("recovers interrupted runs when the API starts", async () => {
     const database = createDatabase(":memory:");
     const repository = new PersistenceRepository(database.db);

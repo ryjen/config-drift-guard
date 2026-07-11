@@ -1,3 +1,5 @@
+import type Database from "better-sqlite3";
+
 export const initialMigrationSql = `
 PRAGMA foreign_keys = ON;
 
@@ -78,3 +80,112 @@ CREATE TABLE IF NOT EXISTS events (
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 `;
+
+const activeRunRecoveryError = JSON.stringify({
+  code: "duplicate_active_run_recovered",
+  message: "Run was terminalized while enforcing one active run per environment",
+});
+
+const activeRunRecoveryEvent = JSON.stringify({
+  status: "failed",
+  reason: "duplicate_active_run_recovered",
+});
+
+export function applyMigrations(sqlite: Database.Database): void {
+  sqlite.transaction(() => {
+    sqlite.exec(initialMigrationSql);
+
+    sqlite.exec(`
+      CREATE TEMP TABLE IF NOT EXISTS duplicate_active_runs (
+        id TEXT PRIMARY KEY NOT NULL
+      );
+      DELETE FROM duplicate_active_runs;
+
+      INSERT INTO duplicate_active_runs (id)
+      WITH ranked_active_runs AS (
+        SELECT
+          id,
+          ROW_NUMBER() OVER (
+            PARTITION BY environment_id
+            ORDER BY
+              CASE status
+                WHEN 'awaiting_approval' THEN 3
+                WHEN 'running' THEN 2
+                WHEN 'queued' THEN 1
+                ELSE 0
+              END DESC,
+              updated_at DESC,
+              created_at DESC,
+              id DESC
+          ) AS active_rank
+        FROM runs
+        WHERE status IN ('queued', 'running', 'awaiting_approval')
+      )
+      SELECT id
+      FROM ranked_active_runs
+      WHERE active_rank > 1;
+    `);
+
+    sqlite
+      .prepare(
+        `
+        UPDATE steps
+        SET
+          status = 'failed',
+          message = ?,
+          error = ?,
+          completed_at = CURRENT_TIMESTAMP
+        WHERE run_id IN (SELECT id FROM duplicate_active_runs)
+          AND status = 'running'
+        `,
+      )
+      .run("Run terminalized during duplicate active-run recovery", activeRunRecoveryError);
+
+    sqlite
+      .prepare(
+        `
+        UPDATE steps
+        SET
+          status = 'skipped',
+          message = ?,
+          completed_at = CURRENT_TIMESTAMP
+        WHERE run_id IN (SELECT id FROM duplicate_active_runs)
+          AND status = 'pending'
+        `,
+      )
+      .run("Skipped during duplicate active-run recovery");
+
+    sqlite
+      .prepare(
+        `
+        INSERT INTO events (run_id, event_type, payload)
+        SELECT id, 'run.recovered_duplicate_active', ?
+        FROM duplicate_active_runs
+        `,
+      )
+      .run(activeRunRecoveryEvent);
+
+    sqlite
+      .prepare(
+        `
+        UPDATE runs
+        SET
+          status = 'failed',
+          current_step = NULL,
+          error = ?,
+          version = version + 1,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id IN (SELECT id FROM duplicate_active_runs)
+        `,
+      )
+      .run(activeRunRecoveryError);
+
+    sqlite.exec(`
+      CREATE UNIQUE INDEX IF NOT EXISTS runs_one_active_per_env
+        ON runs(environment_id)
+        WHERE status IN ('queued', 'running', 'awaiting_approval');
+
+      DROP TABLE duplicate_active_runs;
+    `);
+  })();
+}
