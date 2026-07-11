@@ -11,8 +11,9 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { z } from "zod";
 import { DocumentationAdapter } from "./adapters/documentation.js";
 import { ServiceConfigAdapter } from "./adapters/service-config.js";
+import { isActiveRunConstraintError } from "./persistence/constraint-errors.js";
 import { createDatabase, type DatabaseHandle } from "./persistence/database.js";
-import { isUniqueConstraintError, PersistenceRepository } from "./persistence/repository.js";
+import { PersistenceRepository } from "./persistence/repository.js";
 import { WorkflowExecutor } from "./workflow-executor.js";
 
 const LOCAL_ORIGINS = new Set(["localhost", "127.0.0.1", "::1"]);
@@ -118,7 +119,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       try {
         run = repository.createQueuedRun(environment.id);
       } catch (error) {
-        if (isUniqueConstraintError(error)) {
+        if (isActiveRunConstraintError(error)) {
           reply.code(409);
           return { error: "active_run_exists" };
         }
