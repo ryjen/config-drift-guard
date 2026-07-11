@@ -11,6 +11,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { z } from "zod";
 import { DocumentationAdapter } from "./adapters/documentation.js";
 import { ServiceConfigAdapter } from "./adapters/service-config.js";
+import { isActiveRunConstraintError } from "./persistence/constraint-errors.js";
 import { createDatabase, type DatabaseHandle } from "./persistence/database.js";
 import { PersistenceRepository } from "./persistence/repository.js";
 import { WorkflowExecutor } from "./workflow-executor.js";
@@ -114,7 +115,16 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         return { error: "active_run_exists" };
       }
 
-      const run = repository.createQueuedRun(environment.id);
+      let run: ReturnType<typeof repository.createQueuedRun>;
+      try {
+        run = repository.createQueuedRun(environment.id);
+      } catch (error) {
+        if (isActiveRunConstraintError(error)) {
+          reply.code(409);
+          return { error: "active_run_exists" };
+        }
+        throw error;
+      }
       const snapshot = repository.getRunSnapshot(run.id);
       const executor = new WorkflowExecutor(
         repository,

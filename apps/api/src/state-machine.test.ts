@@ -61,19 +61,18 @@ describe("run state machine", () => {
   });
 
   it("rejects illegal run and step transitions for every terminal and inactive status", () => {
-    const handle = createDatabase(":memory:");
-    const repository = new PersistenceRepository(handle.db);
-    const environment = repository.seedServiceConfigEnvironment();
-
     for (const status of statuses) {
       if (status !== "queued") {
+        const { handle, repository, environment } = freshRepo();
         const run = createRunWithStatus(repository, environment.id, status);
         expect(() => startRun(repository, run.id)).toThrow(
           `illegal_run_transition:${status}:running`,
         );
+        handle.close();
       }
 
       if (status !== "running") {
+        const { handle, repository, environment } = freshRepo();
         const run = createRunWithStatus(repository, environment.id, status);
         expect(() => startStep(repository, run.id, "calculate_drift")).toThrow(
           `illegal_step_transition:${status}:calculate_drift`,
@@ -81,36 +80,46 @@ describe("run state machine", () => {
         expect(() => completeStep(repository, run.id, "calculate_drift", null)).toThrow(
           `illegal_step_completion:${status}:none:calculate_drift`,
         );
+        handle.close();
       }
 
       if (status !== "awaiting_approval") {
-        const approveCandidate = createRunWithStatus(repository, environment.id, status);
-        expect(() => approveRun(repository, approveCandidate.id)).toThrow(
+        const { handle: h1, repository: r1, environment: e1 } = freshRepo();
+        const approveCandidate = createRunWithStatus(r1, e1.id, status);
+        expect(() => approveRun(r1, approveCandidate.id)).toThrow(
           `illegal_run_transition:${status}:running`,
         );
+        h1.close();
 
-        const rejectCandidate = createRunWithStatus(repository, environment.id, status);
-        expect(() => rejectRun(repository, rejectCandidate.id)).toThrow(
+        const { handle: h2, repository: r2, environment: e2 } = freshRepo();
+        const rejectCandidate = createRunWithStatus(r2, e2.id, status);
+        expect(() => rejectRun(r2, rejectCandidate.id)).toThrow(
           `illegal_run_transition:${status}:rejected`,
         );
+        h2.close();
       }
 
       if (status !== "running") {
-        const finishCandidate = createRunWithStatus(repository, environment.id, status);
+        const { handle: h1, repository: r1, environment: e1 } = freshRepo();
+        const finishCandidate = createRunWithStatus(r1, e1.id, status);
         expect(() =>
-          finishRun(repository, finishCandidate.id, {
+          finishRun(r1, finishCandidate.id, {
             canonicalDigest: "sha256:canonical",
             observedDigest: "sha256:observed",
           }),
         ).toThrow(`illegal_run_transition:${status}:awaiting_approval`);
+        h1.close();
 
-        const reconciledCandidate = createRunWithStatus(repository, environment.id, status);
-        expect(() =>
-          finishReconciledRun(repository, reconciledCandidate.id, "sha256:verified"),
-        ).toThrow(`illegal_run_transition:${status}:succeeded`);
+        const { handle: h2, repository: r2, environment: e2 } = freshRepo();
+        const reconciledCandidate = createRunWithStatus(r2, e2.id, status);
+        expect(() => finishReconciledRun(r2, reconciledCandidate.id, "sha256:verified")).toThrow(
+          `illegal_run_transition:${status}:succeeded`,
+        );
+        h2.close();
       }
     }
 
+    const { handle, repository, environment } = freshRepo();
     const runningRun = createRunWithStatus(repository, environment.id, "running");
     repository.updateRunState(runningRun.id, {
       status: "running",
@@ -135,4 +144,11 @@ function createRunWithStatus(
   }
 
   return repository.updateRunState(run.id, { status, currentStep: null, error: null });
+}
+
+function freshRepo() {
+  const handle = createDatabase(":memory:");
+  const repository = new PersistenceRepository(handle.db);
+  const environment = repository.seedServiceConfigEnvironment();
+  return { handle, repository, environment };
 }
