@@ -42,7 +42,11 @@ describe("WorkflowExecutor canonical-state preflight", () => {
       code: "stale_canonical_state",
       detail: {
         expectedCanonicalDigest: planned.plan?.canonicalDigest,
+        currentCanonicalDigest: expect.stringMatching(/^sha256:/),
       },
+    });
+    expect(failed.run.error?.detail).not.toMatchObject({
+      currentCanonicalDigest: planned.plan?.canonicalDigest,
     });
     expect(failed.steps.find((step) => step.key === "preflight_reconciliation")).toMatchObject({
       status: "failed",
