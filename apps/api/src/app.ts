@@ -56,10 +56,10 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     service_config: serviceConfigAdapter,
   } satisfies Record<AdapterKind, ServiceConfigAdapter | DocumentationAdapter>;
   const pendingWorkflowTimers = new Set<ReturnType<typeof setTimeout>>();
-  const activeWorkflows = new Set<Promise<void>>();
+  const activeWorkflows = new Set<Promise<unknown>>();
   let isClosing = false;
 
-  const scheduleWorkflow = (workflow: () => Promise<void>): void => {
+  const scheduleWorkflow = (workflow: () => Promise<unknown>): void => {
     const timer = setTimeout(() => {
       pendingWorkflowTimers.delete(timer);
       if (isClosing) {
