@@ -55,14 +55,40 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     documentation: documentationAdapter,
     service_config: serviceConfigAdapter,
   } satisfies Record<AdapterKind, ServiceConfigAdapter | DocumentationAdapter>;
+  const pendingWorkflowTimers = new Set<ReturnType<typeof setTimeout>>();
+  const activeWorkflows = new Set<Promise<void>>();
+  let isClosing = false;
+
+  const scheduleWorkflow = (workflow: () => Promise<void>): void => {
+    const timer = setTimeout(() => {
+      pendingWorkflowTimers.delete(timer);
+      if (isClosing) {
+        return;
+      }
+
+      const execution = workflow();
+      activeWorkflows.add(execution);
+      void execution.finally(() => activeWorkflows.delete(execution));
+    }, QUEUE_DELAY_MS);
+    pendingWorkflowTimers.add(timer);
+  };
 
   repository.seedServiceConfigEnvironment();
   repository.seedDocumentationEnvironment();
   repository.recoverInterruptedRuns();
 
-  if (options.database === undefined) {
-    app.addHook("onClose", async () => database.close());
-  }
+  app.addHook("onClose", async () => {
+    isClosing = true;
+    for (const timer of pendingWorkflowTimers) {
+      clearTimeout(timer);
+    }
+    pendingWorkflowTimers.clear();
+    await Promise.allSettled(activeWorkflows);
+
+    if (options.database === undefined) {
+      database.close();
+    }
+  });
 
   await app.register(cors, {
     origin: (origin, callback) => {
@@ -152,9 +178,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         adapters[environment.adapterKind],
         PHASE_DELAY_MS,
       );
-      setTimeout(() => {
-        void executor.execute(run.id);
-      }, QUEUE_DELAY_MS);
+      scheduleWorkflow(() => executor.execute(run.id));
       reply.code(201);
       return snapshot;
     },
@@ -233,9 +257,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       adapters[environment.adapterKind],
       PHASE_DELAY_MS,
     );
-    setTimeout(() => {
-      void executor.executeReconciliation(snapshot.run.id);
-    }, QUEUE_DELAY_MS);
+    scheduleWorkflow(() => executor.executeReconciliation(snapshot.run.id));
     reply.code(202);
     return repository.getRunSnapshot(snapshot.run.id);
   });
