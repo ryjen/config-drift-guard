@@ -432,60 +432,57 @@ describe("API health", () => {
     database.close();
   });
 
-  it("wraps all error responses in the shared API error envelope", async () => {
+  it.each([
+    {
+      label: "400 validation error",
+      request: {
+        method: "POST" as const,
+        url: "/api/environments/env_service_config/reset",
+        payload: { bad: true },
+      },
+      expectStatus: 400,
+    },
+    {
+      label: "404 missing run",
+      request: { method: "GET" as const, url: "/api/runs/does_not_exist" },
+      expectStatus: 404,
+    },
+    {
+      label: "409 active run conflict",
+      request: {
+        method: "POST" as const,
+        url: "/api/environments/env_service_config/runs",
+      },
+      expectStatus: 409,
+      setup: async (app: Awaited<ReturnType<typeof buildApp>>) => {
+        const r = await app.inject({
+          method: "POST",
+          url: "/api/environments/env_service_config/runs",
+        });
+        expect(r.statusCode).toBe(201);
+      },
+    },
+  ])("wraps $label in the shared API error envelope", async ({ request, expectStatus, setup }) => {
     const database = createDatabase(":memory:");
     const app = await buildApp({ database, serviceConfigObservedPath: createObservedPath() });
 
-    const cases = [
-      {
-        label: "400 validation error",
-        request: {
-          method: "POST" as const,
-          url: "/api/environments/env_service_config/reset",
-          payload: { bad: true },
-        },
-        expectStatus: 400,
-      },
-      {
-        label: "404 missing run",
-        request: { method: "GET" as const, url: "/api/runs/does_not_exist" },
-        expectStatus: 404,
-      },
-      {
-        label: "409 active run conflict",
-        request: {
-          method: "POST" as const,
-          url: "/api/environments/env_service_config/runs",
-        },
-        expectStatus: 409,
-        setup: async () => {
-          const r = await app.inject({
-            method: "POST",
-            url: "/api/environments/env_service_config/runs",
-          });
-          expect(r.statusCode).toBe(201);
-        },
-      },
-    ];
-
-    for (const testCase of cases) {
-      if (testCase.setup !== undefined) {
-        await testCase.setup();
-      }
-
-      const response = await app.inject(testCase.request);
-      expect(response.statusCode).toBe(testCase.expectStatus);
-      const body = response.json();
-      expect(body).toHaveProperty("error");
-      expect(body.error).toHaveProperty("code");
-      expect(body.error).toHaveProperty("message");
-      expect(body.error).toHaveProperty("retryable");
-      expect(body.error).toHaveProperty("requestId");
-      expect(typeof body.error.code).toBe("string");
-      expect(typeof body.error.message).toBe("string");
-      expect(typeof body.error.retryable).toBe("boolean");
-      expect(typeof body.error.requestId).toBe("string");
+    if (setup !== undefined) {
+      await setup(app);
     }
+
+    const response = await app.inject(request);
+    expect(response.statusCode).toBe(expectStatus);
+    const body = response.json();
+    expect(body).toHaveProperty("error");
+    expect(body.error).toHaveProperty("code");
+    expect(body.error).toHaveProperty("message");
+    expect(body.error).toHaveProperty("retryable");
+    expect(body.error).toHaveProperty("requestId");
+    expect(body.error).not.toHaveProperty("detail");
+    expect(typeof body.error.code).toBe("string");
+    expect(typeof body.error.message).toBe("string");
+    expect(typeof body.error.retryable).toBe("boolean");
+    expect(typeof body.error.requestId).toBe("string");
 
     await app.close();
     database.close();

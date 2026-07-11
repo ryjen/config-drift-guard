@@ -12,11 +12,12 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { z } from "zod";
 import { DocumentationAdapter } from "./adapters/documentation.js";
 import { ServiceConfigAdapter } from "./adapters/service-config.js";
-import { apiError, DECISION_COMMENT_MAX_LENGTH } from "./api-error.js";
+import { apiError } from "./api-error.js";
 import { createDatabase, type DatabaseHandle } from "./persistence/database.js";
 import { PersistenceRepository } from "./persistence/repository.js";
 import { WorkflowExecutor } from "./workflow-executor.js";
 
+const DECISION_COMMENT_MAX_LENGTH = 1000;
 const LOCAL_ORIGINS = new Set(["localhost", "127.0.0.1", "::1"]);
 const QUEUE_DELAY_MS = Number.parseInt(process.env.QUEUE_DELAY_MS ?? "0", 10) || 0;
 const PHASE_DELAY_MS = Number.parseInt(process.env.PHASE_DELAY_MS ?? "0", 10) || 0;
@@ -173,7 +174,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       return apiError("invalid_request", "Invalid decision request", requestId);
     }
 
-    const snapshot = getSnapshotOrReplyNotFound(repository, request.params.runId, reply, requestId);
+    const snapshot = getSnapshotOrReplyNotFound(repository, request.params.runId, reply);
     if (snapshot === null) {
       return apiError("run_not_found", "Run not found", requestId);
     }
@@ -237,7 +238,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       return apiError("invalid_request", "Invalid decision request", requestId);
     }
 
-    const snapshot = getSnapshotOrReplyNotFound(repository, request.params.runId, reply, requestId);
+    const snapshot = getSnapshotOrReplyNotFound(repository, request.params.runId, reply);
     if (snapshot === null) {
       return apiError("run_not_found", "Run not found", requestId);
     }
@@ -337,7 +338,6 @@ function getSnapshotOrReplyNotFound(
   repository: PersistenceRepository,
   runId: string,
   reply: { code(statusCode: number): unknown },
-  _requestId: string,
 ): RunSnapshot | null {
   try {
     return repository.getRunSnapshot(runId);

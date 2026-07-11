@@ -18,5 +18,3 @@ export function apiError(
     },
   };
 }
-
-export const DECISION_COMMENT_MAX_LENGTH = 1000;
