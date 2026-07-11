@@ -1,6 +1,6 @@
 "use client";
 
-import type { ApiErrorResponse, Environment, RunSnapshot } from "@config-drift-guard/contracts";
+import type { Environment, RunSnapshot } from "@config-drift-guard/contracts";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 
 const lastRunStorageKey = "config-drift-guard:last-run-id";
@@ -92,12 +92,8 @@ export function OperatorConsole({ apiBaseUrl, environments }: OperatorConsolePro
       });
 
       if (!response.ok) {
-        const payload = (await response.json().catch(() => null)) as ApiErrorResponse | null;
-        setError(
-          payload?.error !== undefined
-            ? `${payload.error.message} [${payload.error.code}]`
-            : `Request failed: HTTP ${response.status}`,
-        );
+        const payload = await response.json().catch(() => null);
+        setError(describeApiError(payload, response.status));
         return;
       }
 
@@ -118,12 +114,8 @@ export function OperatorConsole({ apiBaseUrl, environments }: OperatorConsolePro
       });
 
       if (!response.ok) {
-        const payload = (await response.json().catch(() => null)) as ApiErrorResponse | null;
-        setError(
-          payload?.error !== undefined
-            ? `${payload.error.message} [${payload.error.code}]`
-            : `Request failed: HTTP ${response.status}`,
-        );
+        const payload = await response.json().catch(() => null);
+        setError(describeApiError(payload, response.status));
         return;
       }
 
@@ -232,7 +224,8 @@ async function refreshRun(
 ): Promise<void> {
   const response = await fetch(`${apiBaseUrl}/api/runs/${runId}`, { cache: "no-store" });
   if (!response.ok) {
-    setError(`Unable to load run ${runId}: HTTP ${response.status}`);
+    const payload = await response.json().catch(() => null);
+    setError(`Unable to load run ${runId}: ${describeApiError(payload, response.status)}`);
     return;
   }
 
@@ -241,6 +234,24 @@ async function refreshRun(
   setEnvironmentId(nextSnapshot.run.environmentId);
   setError(null);
   window.localStorage.setItem(lastRunStorageKey, nextSnapshot.run.id);
+}
+
+function describeApiError(payload: unknown, status: number): string {
+  if (typeof payload !== "object" || payload === null || !("error" in payload)) {
+    return `Request failed: HTTP ${status}`;
+  }
+
+  const error = payload.error;
+  if (typeof error !== "object" || error === null || !("message" in error)) {
+    return `Request failed: HTTP ${status}`;
+  }
+
+  if (typeof error.message !== "string") {
+    return `Request failed: HTTP ${status}`;
+  }
+
+  const code = "code" in error && typeof error.code === "string" ? ` [${error.code}]` : "";
+  return `${error.message}${code}`;
 }
 
 function RunDetails({
