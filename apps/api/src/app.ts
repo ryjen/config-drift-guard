@@ -1,5 +1,6 @@
 import {
   type AdapterKind,
+  type ApiErrorResponse,
   type Environment,
   type Event,
   type HealthResponse,
@@ -11,18 +12,20 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { z } from "zod";
 import { DocumentationAdapter } from "./adapters/documentation.js";
 import { ServiceConfigAdapter } from "./adapters/service-config.js";
+import { apiError } from "./api-error.js";
 import { isActiveRunConstraintError } from "./persistence/constraint-errors.js";
 import { createDatabase, type DatabaseHandle } from "./persistence/database.js";
 import { PersistenceRepository } from "./persistence/repository.js";
 import { WorkflowExecutor } from "./workflow-executor.js";
 
+const DECISION_COMMENT_MAX_LENGTH = 1000;
 const LOCAL_ORIGINS = new Set(["localhost", "127.0.0.1", "::1"]);
 const QUEUE_DELAY_MS = Number.parseInt(process.env.QUEUE_DELAY_MS ?? "0", 10) || 0;
 const PHASE_DELAY_MS = Number.parseInt(process.env.PHASE_DELAY_MS ?? "0", 10) || 0;
 
 const decisionRequestSchema = z
   .object({
-    comment: z.string().trim().min(1).nullable().optional(),
+    comment: z.string().trim().min(1).max(DECISION_COMMENT_MAX_LENGTH).nullable().optional(),
   })
   .strict();
 const emptyRequestSchema = z.object({}).strict();
@@ -52,14 +55,40 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     documentation: documentationAdapter,
     service_config: serviceConfigAdapter,
   } satisfies Record<AdapterKind, ServiceConfigAdapter | DocumentationAdapter>;
+  const pendingWorkflowTimers = new Set<ReturnType<typeof setTimeout>>();
+  const activeWorkflows = new Set<Promise<unknown>>();
+  let isClosing = false;
+
+  const scheduleWorkflow = (workflow: () => Promise<unknown>): void => {
+    const timer = setTimeout(() => {
+      pendingWorkflowTimers.delete(timer);
+      if (isClosing) {
+        return;
+      }
+
+      const execution = workflow();
+      activeWorkflows.add(execution);
+      void execution.finally(() => activeWorkflows.delete(execution));
+    }, QUEUE_DELAY_MS);
+    pendingWorkflowTimers.add(timer);
+  };
 
   repository.seedServiceConfigEnvironment();
   repository.seedDocumentationEnvironment();
   repository.recoverInterruptedRuns();
 
-  if (options.database === undefined) {
-    app.addHook("onClose", async () => database.close());
-  }
+  app.addHook("onClose", async () => {
+    isClosing = true;
+    for (const timer of pendingWorkflowTimers) {
+      clearTimeout(timer);
+    }
+    pendingWorkflowTimers.clear();
+    await Promise.allSettled(activeWorkflows);
+
+    if (options.database === undefined) {
+      database.close();
+    }
+  });
 
   await app.register(cors, {
     origin: (origin, callback) => {
@@ -72,47 +101,61 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     },
   });
 
+  app.addHook("onSend", async (request, reply) => {
+    reply.header("X-Request-Id", request.id);
+  });
+
   app.get<{ Reply: HealthResponse }>("/health", async () => healthResponse);
   app.get<{ Reply: Environment[] }>("/api/environments", async () => repository.listEnvironments());
 
   app.post<{
     Params: { id: string };
     Body: unknown;
-    Reply: { status: "reset"; environment: Environment } | { error: string };
+    Reply: { status: "reset"; environment: Environment } | ApiErrorResponse;
   }>("/api/environments/:id/reset", async (request, reply) => {
+    const requestId = request.id;
     const parsed = emptyRequestSchema.safeParse(request.body ?? {});
     if (!parsed.success) {
       reply.code(400);
-      return { error: "invalid_reset_request" };
+      return apiError("invalid_request", "Request body must be empty", requestId);
     }
 
     const environment = repository.getEnvironment(request.params.id);
     if (environment === null) {
       reply.code(404);
-      return { error: "environment_not_found" };
+      return apiError("environment_not_found", "Environment not found", requestId);
     }
 
     if (repository.hasActiveRun(environment.id)) {
       reply.code(409);
-      return { error: "active_run_exists" };
+      return apiError(
+        "active_run_exists",
+        "An active run already exists for this environment",
+        requestId,
+      );
     }
 
     adapters[environment.adapterKind].resetObserved();
     return { status: "reset", environment };
   });
 
-  app.post<{ Params: { id: string }; Reply: RunSnapshot | { error: string } }>(
+  app.post<{ Params: { id: string }; Reply: RunSnapshot | ApiErrorResponse }>(
     "/api/environments/:id/runs",
     async (request, reply) => {
+      const requestId = request.id;
       const environment = repository.getEnvironment(request.params.id);
       if (environment === null) {
         reply.code(404);
-        return { error: "environment_not_found" };
+        return apiError("environment_not_found", "Environment not found", requestId);
       }
 
       if (repository.hasActiveRun(environment.id)) {
         reply.code(409);
-        return { error: "active_run_exists" };
+        return apiError(
+          "active_run_exists",
+          "An active run already exists for this environment",
+          requestId,
+        );
       }
 
       let run: ReturnType<typeof repository.createQueuedRun>;
@@ -121,7 +164,11 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       } catch (error) {
         if (isActiveRunConstraintError(error)) {
           reply.code(409);
-          return { error: "active_run_exists" };
+          return apiError(
+            "active_run_exists",
+            "An active run already exists for this environment",
+            requestId,
+          );
         }
         throw error;
       }
@@ -131,15 +178,13 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         adapters[environment.adapterKind],
         PHASE_DELAY_MS,
       );
-      setTimeout(() => {
-        void executor.execute(run.id);
-      }, QUEUE_DELAY_MS);
+      scheduleWorkflow(() => executor.execute(run.id));
       reply.code(201);
       return snapshot;
     },
   );
 
-  app.get<{ Params: { runId: string }; Reply: RunSnapshot | { error: string } }>(
+  app.get<{ Params: { runId: string }; Reply: RunSnapshot | ApiErrorResponse }>(
     "/api/runs/:runId",
     async (request, reply) => {
       try {
@@ -147,7 +192,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       } catch (error) {
         if (error instanceof Error && error.message.startsWith("run_not_found:")) {
           reply.code(404);
-          return { error: "run_not_found" };
+          return apiError("run_not_found", "Run not found", request.id);
         }
 
         throw error;
@@ -158,17 +203,18 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   app.post<{
     Params: { runId: string };
     Body: unknown;
-    Reply: RunSnapshot | { error: string };
+    Reply: RunSnapshot | ApiErrorResponse;
   }>("/api/runs/:runId/approve", async (request, reply) => {
+    const requestId = request.id;
     const parsed = decisionRequestSchema.safeParse(request.body ?? {});
     if (!parsed.success) {
       reply.code(400);
-      return { error: "invalid_decision_request" };
+      return apiError("invalid_request", "Invalid decision request", requestId);
     }
 
     const snapshot = getSnapshotOrReplyNotFound(repository, request.params.runId, reply);
     if (snapshot === null) {
-      return { error: "run_not_found" };
+      return apiError("run_not_found", "Run not found", requestId);
     }
 
     if (snapshot.decision !== null) {
@@ -176,12 +222,16 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         return snapshot;
       }
       reply.code(409);
-      return { error: "contradictory_decision" };
+      return apiError(
+        "contradictory_decision",
+        "A contradictory decision already exists",
+        requestId,
+      );
     }
 
     if (snapshot.run.status !== "awaiting_approval" || snapshot.plan === null) {
       reply.code(409);
-      return { error: "run_not_awaiting_approval" };
+      return apiError("run_not_awaiting_approval", "Run is not awaiting approval", requestId);
     }
 
     try {
@@ -200,16 +250,14 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     const environment = repository.getEnvironment(snapshot.run.environmentId);
     if (environment === null) {
       reply.code(404);
-      return { error: "environment_not_found" };
+      return apiError("environment_not_found", "Environment not found", requestId);
     }
     const executor = new WorkflowExecutor(
       repository,
       adapters[environment.adapterKind],
       PHASE_DELAY_MS,
     );
-    setTimeout(() => {
-      void executor.executeReconciliation(snapshot.run.id);
-    }, QUEUE_DELAY_MS);
+    scheduleWorkflow(() => executor.executeReconciliation(snapshot.run.id));
     reply.code(202);
     return repository.getRunSnapshot(snapshot.run.id);
   });
@@ -217,17 +265,18 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   app.post<{
     Params: { runId: string };
     Body: unknown;
-    Reply: RunSnapshot | { error: string };
+    Reply: RunSnapshot | ApiErrorResponse;
   }>("/api/runs/:runId/reject", async (request, reply) => {
+    const requestId = request.id;
     const parsed = decisionRequestSchema.safeParse(request.body ?? {});
     if (!parsed.success) {
       reply.code(400);
-      return { error: "invalid_decision_request" };
+      return apiError("invalid_request", "Invalid decision request", requestId);
     }
 
     const snapshot = getSnapshotOrReplyNotFound(repository, request.params.runId, reply);
     if (snapshot === null) {
-      return { error: "run_not_found" };
+      return apiError("run_not_found", "Run not found", requestId);
     }
 
     if (snapshot.decision !== null) {
@@ -235,12 +284,16 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         return snapshot;
       }
       reply.code(409);
-      return { error: "contradictory_decision" };
+      return apiError(
+        "contradictory_decision",
+        "A contradictory decision already exists",
+        requestId,
+      );
     }
 
     if (snapshot.run.status !== "awaiting_approval") {
       reply.code(409);
-      return { error: "run_not_awaiting_approval" };
+      return apiError("run_not_awaiting_approval", "Run is not awaiting approval", requestId);
     }
 
     try {
@@ -267,7 +320,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     } catch (error) {
       if (error instanceof Error && error.message.startsWith("run_not_found:")) {
         reply.code(404);
-        return { error: "run_not_found" };
+        return apiError("run_not_found", "Run not found", request.id);
       }
 
       throw error;
@@ -280,6 +333,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       Connection: "keep-alive",
       "Content-Type": "text/event-stream",
       "X-Accel-Buffering": "no",
+      "X-Request-Id": request.id,
       ...(requestOrigin !== undefined ? { "Access-Control-Allow-Origin": requestOrigin } : {}),
     });
 
