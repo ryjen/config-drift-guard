@@ -32,6 +32,12 @@ interface WorkflowRepository extends RunStateStore {
   getRunSnapshot(runId: string): RunSnapshot;
 }
 
+export interface ApplyResult {
+  readonly observedDigestBefore: string;
+  readonly observedDigestAfter: string;
+  readonly targetDigest: string;
+}
+
 export interface DriftAdapter {
   readonly kind: string;
   loadCanonical(): JsonValue;
@@ -39,10 +45,7 @@ export interface DriftAdapter {
   validateCanonical(input: JsonValue): void;
   normalizeCanonical(input: JsonValue): NormalizedResourceState;
   normalizeObserved(input: JsonValue, resourceId: string): NormalizedResourceState;
-  applyTarget(
-    expectedObservedDigest: string,
-    target: JsonValue,
-  ): ReturnType<ServiceConfigAdapter["applyTarget"]>;
+  applyTarget(expectedObservedDigest: string, target: JsonValue): ApplyResult;
 }
 
 export class StaleCanonicalStateError extends Error {
