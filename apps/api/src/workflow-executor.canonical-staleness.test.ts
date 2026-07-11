@@ -21,7 +21,8 @@ describe("WorkflowExecutor canonical-state preflight", () => {
   });
 
   it("rejects an approved plan when canonical managed state changed after plan generation", async () => {
-    const { adapter, executor, observedPath, planned, repository, runId } = await createPlannedRun();
+    const { adapter, executor, observedPath, planned, repository, runId } =
+      await createPlannedRun();
 
     adapter.canonicalImage = "api:v3";
     approve(repository, runId);
@@ -33,7 +34,8 @@ describe("WorkflowExecutor canonical-state preflight", () => {
   });
 
   it("rejects an approved plan when canonical resource identity changed", async () => {
-    const { adapter, executor, observedPath, planned, repository, runId } = await createPlannedRun();
+    const { adapter, executor, observedPath, planned, repository, runId } =
+      await createPlannedRun();
 
     adapter.canonicalResourceId = "replacement-service";
     approve(repository, runId);
