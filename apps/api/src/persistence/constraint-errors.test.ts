@@ -3,10 +3,9 @@ import { isActiveRunConstraintError } from "./constraint-errors.js";
 
 describe("isActiveRunConstraintError", () => {
   it("accepts the active-run environment uniqueness violation", () => {
-    const error = Object.assign(
-      new Error("UNIQUE constraint failed: runs.environment_id"),
-      { code: "SQLITE_CONSTRAINT_UNIQUE" },
-    );
+    const error = Object.assign(new Error("UNIQUE constraint failed: runs.environment_id"), {
+      code: "SQLITE_CONSTRAINT_UNIQUE",
+    });
 
     expect(isActiveRunConstraintError(error)).toBe(true);
   });

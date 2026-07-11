@@ -11,6 +11,7 @@
     "test": "corepack pnpm -r test",
     "typecheck": "corepack pnpm -r typecheck",
     "lint": "biome check .",
+    "format": "biome format --write .",
     "check": "corepack pnpm lint && corepack pnpm typecheck && corepack pnpm build && corepack pnpm test"
   },
   "devDependencies": {
