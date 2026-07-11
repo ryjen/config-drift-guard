@@ -91,6 +91,11 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       return { error: "environment_not_found" };
     }
 
+    if (repository.hasActiveRun(environment.id)) {
+      reply.code(409);
+      return { error: "active_run_exists" };
+    }
+
     adapters[environment.adapterKind].resetObserved();
     return { status: "reset", environment };
   });

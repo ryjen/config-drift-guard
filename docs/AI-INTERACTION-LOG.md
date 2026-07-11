@@ -22,6 +22,24 @@ Record:
 - manual verification;
 - known limitations.
 
+## Full transcripts
+
+Complete verbatim chat sessions are in [`docs/ai/`](ai/):
+
+| Session | File |
+| ------- | ---- |
+| 00 — Repository assessment | [`00-assessment.md`](ai/00-assessment.md) |
+| 01 — Workspace foundation | [`01-workspace-foundation.md`](ai/01-workspace-foundation.md) |
+| 02 — Contracts and persistence | [`02-contracts-persistence.md`](ai/02-contracts-persistence.md) |
+| 03 — Deterministic drift engine | [`03-drift-engine.md`](ai/03-drift-engine.md) |
+| 04 — Persisted drift scans | [`04-persisted-drift-scans.md`](ai/04-persisted-drift-scans.md) |
+| 05 — SSE workflow progress | [`05-sse-workflow-progress.md`](ai/05-sse-workflow-progress.md) |
+| 06 — Approval-gated reconciliation | [`06-approval-reconciliation.md`](ai/06-approval-reconciliation.md) |
+| 07 — Structured documentation drift | [`07-documentation-drift.md`](ai/07-documentation-drift.md) |
+| 08 — Failure hardening | [`08-failure-hardening.md`](ai/08-failure-hardening.md) |
+| 09 — Documentation and submission | [`09-documentation-submission.md`](ai/09-documentation-submission.md) |
+| 10 — Maintenance | [`10-maintenance.md`](ai/10-maintenance.md) |
+
 ## Important decisions already established
 
 - Build an evaluator-ready vertical slice.
@@ -78,11 +96,11 @@ Initialize the evaluator-ready TypeScript workspace foundation without adding SQ
 
 ### Complete prompt
 
-The user requested work in the current repository, required reading `README.md`, `docs/CURRENT-UNDERSTANDING.md`, `docs/PLAN.md`, and `docs/DECISIONS.md`, and asked for a pnpm workspace with Fastify API, Next.js web app, contracts and drift-engine packages, strict TypeScript, Biome, Vitest, root scripts, API `/health`, web-to-API connectivity page, loopback binding, local-only CORS, safe `.gitignore`, environment examples, checks, app startup verification, and commit message `chore: initialize TypeScript workspace and development tooling`.
+> See [full transcript](ai/01-workspace-foundation.md#complete-prompt).
 
 ### Complete interaction
 
-The assistant read the required docs, inspected the docs-only repository state, scaffolded the workspace, installed dependencies with Corepack because `pnpm` was not directly available, ran checks, corrected workspace package type exports and script ordering, migrated Biome config, updated README status, and prepared verification before commit.
+> See [full transcript](ai/01-workspace-foundation.md#complete-interaction).
 
 ### Author decisions
 
@@ -132,11 +150,11 @@ Implement the evaluator-ready persistence/contracts slice: Zod contracts, Drizzl
 
 ### Complete prompt
 
-The user requested work in the current repository, required reading `README.md`, `docs/CURRENT-UNDERSTANDING.md`, `docs/PLAN.md`, and `docs/DECISIONS.md`, and asked for strict TypeScript, deterministic boundaries, pure drift engine separation, one state-machine and executor later, REST snapshots as authoritative, SSE as notification only, no browser filesystem paths, adapter-managed fields only, server-owned immutable plans, approval/stale-plan/atomic/verification constraints for later reconciliation, documentation updates for divergence, checks before commit, and commit message `feat: define shared contracts and SQLite persistence`.
+> See [full transcript](ai/02-contracts-persistence.md#complete-prompt).
 
 ### Complete interaction
 
-The assistant read the required docs, inspected the workspace, added Zod contracts, added Drizzle with `better-sqlite3`, created a SQLite schema and initial migration SQL, implemented database initialization and a domain-shaped persistence repository, seeded the primary service-config environment, exposed `GET /api/environments`, added repository and API tests, corrected transaction usage, handled the local native SQLite binding build, added a Vitest alias so API tests use contracts source instead of stale `dist`, and updated implementation documentation.
+> See [full transcript](ai/02-contracts-persistence.md#complete-interaction).
 
 ### Author decisions
 
@@ -188,11 +206,11 @@ Implement the pure normalized-state comparison engine for the primary service-co
 
 ### Complete prompt
 
-The user requested work in the current repository, required reading `README.md`, `docs/CURRENT-UNDERSTANDING.md`, `docs/PLAN.md`, and `docs/DECISIONS.md`, and asked for an evaluator-ready vertical slice with strict TypeScript, deterministic drift detection, a pure drift engine, adapter-managed fields only, immutable server-side plans later, approval/stale-plan/atomic/verification constraints for later reconciliation, documentation updates for implementation divergence, checks before commit, and commit message `feat: implement deterministic configuration drift engine`. The specific implementation requirements were deterministic ordering, added/removed/changed findings, stable JSON-pointer-like paths, no mutation of caller-owned data, adapter-provided managed fields, severity classification, SHA-256 canonical digests, complete target-state generation, comprehensive tests, and a service-config scenario with exactly `/image`, `/replicas`, and `/environment/LOG_LEVEL` changed while ignoring `runtimePid`.
+> See [full transcript](ai/03-drift-engine.md#complete-prompt).
 
 ### Complete interaction
 
-The assistant read the required docs, inspected the workspace and drift-engine placeholder, implemented a pure TypeScript drift-engine API, added deterministic canonical JSON stringification and SHA-256 digests, compared only managed top-level fields recursively, emitted stable pointer-style paths, classified severity with service-config defaults and an override hook, generated complete target state by overlaying canonical managed fields onto observed state, preserved unmanaged fields, added unit tests, fixed strict TypeScript narrowing issues, and updated README implementation status.
+> See [full transcript](ai/03-drift-engine.md#complete-interaction).
 
 ### Author decisions
 
@@ -242,11 +260,11 @@ Implement the evaluator-ready scan slice: local service-config adapter, explicit
 
 ### Complete prompt
 
-The user requested work in the current repository, required reading `README.md`, `docs/CURRENT-UNDERSTANDING.md`, `docs/PLAN.md`, and `docs/DECISIONS.md`, and asked for strict TypeScript, deterministic drift detection, a pure drift engine, one explicit run state-machine module, one explicit workflow executor, REST snapshots as authoritative, browser input that cannot specify filesystem paths, adapter-managed field comparison only, server-side immutable plans, no runtime AI, documentation updates, checks before committing, and commit message `feat: execute and display persisted drift scans`. The requested workflow was `validate_canonical_state`, `load_observed_state`, `normalize_state`, `calculate_drift`, `classify_findings`, and `build_remediation_plan`; SSE was explicitly not required in this increment.
+> See [full transcript](ai/04-persisted-drift-scans.md#complete-prompt).
 
 ### Complete interaction
 
-The assistant read the required docs, inspected the existing workspace, added a service-config adapter with seeded server-controlled canonical and observed state, added an explicit run state-machine module, added a synchronous explicit workflow executor, extended the repository with persisted run and step transitions, wired `POST /api/environments/:id/runs` and `GET /api/runs/:runId`, added API and workflow tests, replaced the connectivity page with a one-page operator console, corrected Biome formatting and React hook dependency issues, added the missing API dependencies and workspace link refresh, ran the full check, and updated implementation documentation.
+> See [full transcript](ai/04-persisted-drift-scans.md#complete-interaction).
 
 ### Author decisions
 
@@ -295,11 +313,11 @@ Add persisted event replay and minimal server-sent events while keeping REST run
 
 ### Complete prompt
 
-The user requested work in the current repository, required reading `README.md`, `docs/CURRENT-UNDERSTANDING.md`, `docs/PLAN.md`, and `docs/DECISIONS.md`, and asked for strict TypeScript, deterministic drift detection, pure drift-engine boundaries, one explicit state-machine module, one explicit workflow executor, REST snapshots as authoritative, SSE only as compact refetch notifications, no browser filesystem paths, adapter-managed fields only, server-owned immutable plans, no runtime AI, documentation updates for divergence, checks before committing, and commit message `feat: stream workflow progress with server-sent events`. The specific milestone requested persisted events, minimal SSE, UI snapshot refetching, `Last-Event-ID` replay, listener cleanup on disconnect, an event log, and a live workflow timeline.
+> See [full transcript](ai/05-sse-workflow-progress.md#complete-prompt).
 
 ### Complete interaction
 
-The assistant read the required docs, inspected API routes, repository event persistence, the workflow executor, tests, and the operator console, then added repository event replay/listener support, added a compact `/api/runs/:runId/events` SSE endpoint, changed start-run to return the created snapshot before scheduling the existing executor in-process, updated the UI to open an EventSource and refetch the authoritative REST snapshot on notifications, added event-log/live-notification rendering, updated tests, and reconciled README status.
+> See [full transcript](ai/05-sse-workflow-progress.md#complete-interaction).
 
 ### Author decisions
 
@@ -336,7 +354,7 @@ The UI can subscribe to compact run-change notifications, reconnect with browser
 ## Session 06 — Approval-Gated Reconciliation
 
 **Date:** 2026-07-10
-**Tool/model:** OpenCode, gpt-5.5
+**Tool/model:** OpenCode, big pickle (opencode/big-pickle)
 **Milestone:** Milestone 6 — Approval and reconciliation
 **Commit:** `804191b` — `feat: add approval-gated reconciliation and verification`
 
@@ -346,11 +364,11 @@ Implement the evaluator-ready reconciliation path: immutable server-generated pl
 
 ### Complete prompt
 
-The user requested work in the current repository, required reading `README.md`, `docs/CURRENT-UNDERSTANDING.md`, `docs/PLAN.md`, and `docs/DECISIONS.md`, and asked for a vertical slice with strict TypeScript, deterministic drift detection, pure drift-engine boundaries, one explicit state-machine module, one explicit workflow executor, REST snapshots as authoritative, SSE only as refetch notifications, no browser filesystem paths, adapter-managed fields only, server-generated immutable plans, approval/rejection endpoints, local-operator decision records, idempotent same decisions, `409` contradictory decisions, observed digest recheck, `stale_remediation_plan` failure, complete target validation, temporary-file atomic rename, post-write verification scan, UI approval controls and evidence display, checks before commit, and commit message `feat: add approval-gated reconciliation and verification`.
+> See [full transcript](ai/06-approval-reconciliation.md#complete-prompt).
 
 ### Complete interaction
 
-The assistant read the required docs, inspected the API, repository, state machine, service-config adapter, workflow executor, contracts, tests, and UI. It extended the adapter to use a server-controlled observed JSON file, added digest preflight and atomic writes, added explicit approval/rejection/reconciliation transitions, added approve/reject REST endpoints, made same decisions idempotent and contradictory decisions conflict, added reconciliation executor steps, updated the console with decision controls and evidence, added tests for happy-path convergence, stale-plan failure, rejected browser operations, idempotency, and contradiction, and reconciled README status.
+> See [full transcript](ai/06-approval-reconciliation.md#complete-interaction).
 
 ### Author Decisions
 
@@ -358,6 +376,7 @@ The assistant read the required docs, inspected the API, repository, state machi
 - Preserve one state-machine module and one explicit workflow executor; no workflow/DAG framework was added.
 - Treat the observed-state path as server-controlled configuration, defaulting to `./data/service-config.observed.json`.
 - Reject unknown decision request fields so browser-submitted replacement operations fail validation instead of being interpreted.
+- Return 202 for approve (async reconciliation) and 200 for reject (synchronous terminal transition).
 
 ### Accepted Suggestions
 
@@ -366,6 +385,7 @@ The assistant read the required docs, inspected the API, repository, state machi
 - Build and validate a complete observed document by preserving unmanaged runtime metadata and replacing only adapter-managed fields.
 - Write through a same-directory temporary file, fsync where practical, and rename atomically.
 - Verify convergence by scanning observed state again after apply and only then marking the run succeeded.
+- Clear findings after successful verification so the run snapshot reflects converged state.
 
 ### Rejected Suggestions
 
@@ -377,15 +397,17 @@ The assistant read the required docs, inspected the API, repository, state machi
 
 - Repository run-state updates were adjusted to preserve existing evidence digests when optional fields are omitted.
 - Tests use per-test server-side observed-state paths so file-backed reconciliation state does not leak between cases.
+- Biome import ordering and formatting were corrected after each check attempt.
+- Strict TypeScript required cloning Zod passthrough output through `JSON.parse(JSON.stringify(...))` to produce a proper `JsonValue`.
 
 ### Verification
 
-- `corepack pnpm --filter @config-drift-guard/api test` passed.
-- Full repository checks are run before committing.
+- `corepack pnpm --filter @config-drift-guard/api test` passed (15 tests).
+- `corepack pnpm check` passed (lint, typecheck, build, test across all 4 workspace packages).
 
 ### Result and remaining risks
 
-Approval-gated reconciliation is implemented for the primary service-config scenario. Remaining risks are broader failure hardening, reset/reseed convenience for repeated demos, direct manual browser verification, and the optional structured documentation-drift adapter.
+Approval-gated reconciliation is implemented for the primary service-config scenario. The evaluator can now run a scan, see findings and evidence, approve or reject the immutable plan, observe reconciliation steps, and see verification succeed or fail. Remaining risks are broader failure hardening, reset/reseed convenience for repeated demos, direct manual browser verification, and the optional structured documentation-drift adapter.
 
 ## Session 07 — Structured Documentation Drift
 
@@ -400,11 +422,11 @@ Implement the secondary structured-documentation adapter as an evaluator-ready v
 
 ### Complete prompt
 
-The user requested work in the current repository, required reading `README.md`, `docs/CURRENT-UNDERSTANDING.md`, `docs/PLAN.md`, and `docs/DECISIONS.md`, and asked for strict TypeScript, deterministic drift detection, pure drift-engine boundaries, one explicit state-machine module, one explicit workflow executor, REST snapshots as authoritative, SSE as refetch notifications only, no browser filesystem paths, adapter-managed fields only, server-generated immutable plans, approval-gated reconciliation with stale-plan validation, atomic apply and verification, no runtime AI, documentation updates, checks before committing, and commit message `feat: detect structured documentation drift`. The specific feature was a second adapter comparing canonical configuration schema or metadata to a managed Markdown table/generated block, detecting missing rows, obsolete rows, and changed type/default values, generating a deterministic corrected target, and avoiding arbitrary prose semantics.
+> See [full transcript](ai/07-documentation-drift.md#complete-prompt).
 
 ### Complete interaction
 
-The assistant read the required docs, inspected the service adapter, workflow executor, API routes, repository, contracts, tests, and UI. It extracted a shared atomic file helper, added a documentation adapter with seeded canonical schema metadata and a server-controlled Markdown file, parsed only the managed table block, normalized rows into structured settings, reused the pure drift engine for deterministic comparison and target generation, seeded a second environment, made the API choose adapters from persisted environment metadata for scans and approvals, added workflow and API tests for documentation detection and approval-gated convergence, ran checks, and reconciled README status.
+> See [full transcript](ai/07-documentation-drift.md#complete-interaction).
 
 ### Author decisions
 
@@ -453,11 +475,11 @@ Cover workflow transitions and failure scenarios for the evaluator-ready vertica
 
 ### Complete prompt
 
-The user requested work in the current repository, required reading `README.md`, `docs/CURRENT-UNDERSTANDING.md`, `docs/PLAN.md`, and `docs/DECISIONS.md`, and asked to add and test invalid canonical state, malformed observed state, stale plan, simulated atomic-write failure, verification mismatch, interrupted-run startup recovery, every legal and illegal state transition, SSE replay and cleanup, and reset behavior. The user also required strict TypeScript, deterministic drift detection, pure drift-engine boundaries, one state-machine module, one workflow executor, REST snapshots as authoritative, SSE notifications only, no browser filesystem paths, adapter-managed fields only, immutable server-side plans, approval-gated stale-plan-safe reconciliation, no runtime AI unless the deterministic core was complete, relevant checks, and commit message `test: cover workflow transitions and failure scenarios`.
+> See [full transcript](ai/08-failure-hardening.md#complete-prompt).
 
 ### Complete interaction
 
-The assistant read the required docs, inspected the existing TypeScript workspace, workflow executor, state-machine, repository, API routes, adapters, and tests. It added startup recovery for interrupted queued/running runs, added a server-controlled reset endpoint with an explicitly empty request body, added state-machine transition tests, expanded workflow failure tests, expanded repository event replay/listener cleanup tests, added API tests for reset and startup recovery, and updated README implementation claims.
+> See [full transcript](ai/08-failure-hardening.md#complete-interaction).
 
 ### Author decisions
 
@@ -506,11 +528,11 @@ Reconcile all documentation to reflect implemented behavior, create architecture
 
 ### Complete prompt
 
-The user requested work in the current repository, required reading `README.md`, `docs/CURRENT-UNDERSTANDING.md`, `docs/PLAN.md`, and `docs/DECISIONS.md`, and asked to finalize all documentation so no aspirational claims remain. Specific requests included: creating `docs/ARCHITECTURE.md` with the high-level structure, run/step statuses, workflow steps, data model, API surface, and SSE behavior; creating `docs/TRADE-OFFS.md` documenting eight key design decisions with costs and benefits; creating `docs/DEMO.md` with a complete walkthrough of the happy path, failure paths, reset, and production build; updating the README to mark milestones 1-9 as landed and add links to new docs; updating the plan with LANDED markers and commit SHAs for all milestones; updating CURRENT-UNDERSTANDING.md to mark all required features as implemented; backfilling commit SHAs into the existing eight AI interaction log sessions; and running checks before committing with message `docs: finalize architecture, trade-offs, and AI usage`.
+> See [full transcript](ai/09-documentation-submission.md#complete-prompt).
 
 ### Complete interaction
 
-The assistant read the required docs, inspected the full workspace state, created `docs/ARCHITECTURE.md` with a text diagram of the three-layer architecture, state machine diagrams, workflow step sequences, data model relationships, and the complete API surface table. Created `docs/TRADE-OFFS.md` with eight entries covering vertical-slice-over-platform, deterministic-over-AI, in-process-executor, REST-authoritative, SQLite-over-Postgres, one-page-console, adapter-managed-fields, and SHA-256-digests. Created `docs/DEMO.md` with fresh-clone setup, both happy paths, three failure paths, reset instructions, and production build steps. Updated the README to claim milestones 1-9 as landed with a complete AI interaction log reference. Updated the plan with LANDED markers, commit SHAs, and API implementation status indicators. Updated CURRENT-UNDERSTANDING.md to mark all required features as implemented. Backfilled commit SHAs into all eight existing AI interaction log session entries. Ran checks and committed.
+> See [full transcript](ai/09-documentation-submission.md#complete-interaction).
 
 ### Author decisions
 
@@ -558,11 +580,11 @@ Add demo-mode configurable delays, harden SSE with cross-origin support and hear
 
 ### Complete prompt
 
-The user requested work in the current repository, required reading `README.md`, `docs/CURRENT-UNDERSTANDING.md`, `docs/PLAN.md`, and `docs/DECISIONS.md`, and asked for: configurable demo delays (`QUEUE_DELAY_MS` and `PHASE_DELAY_MS` environment variables) so the operator console shows each workflow transition clearly; cross-origin SSE with reflected `Access-Control-Allow-Origin` for the requesting origin; 15-second heartbeat keepalive comments to prevent proxy/browser connection drops; instant green success notifications in the UI when approve/reject decisions succeed; making the workflow executor methods async to support future phase delays; updating tests to handle async executor calls; creating `AGENTS.md` with workspace layout, architecture quick reference, testing notes, and key constraints for AI coding agents; and updating the README, DEMO.md, and PLAN.md to document the new behavior.
+> See [full transcript](ai/10-maintenance.md#complete-prompt).
 
 ### Complete interaction
 
-The assistant read the required docs, inspected the API app, workflow executor, operator console, tests, and styles. It added `QUEUE_DELAY_MS` and `PHASE_DELAY_MS` environment variable parsing to `apps/api/src/app.ts`, passing `PHASE_DELAY_MS` to the `WorkflowExecutor` constructor and using `QUEUE_DELAY_MS` as the `setTimeout` delay for workflow scheduling. Added a `delay()` helper to `apps/api/src/workflow-executor.ts` and inserted `await delay(this.phaseDelay)` between each workflow step. Changed `execute()` and `executeReconciliation()` return types from `RunSnapshot` to `Promise<RunSnapshot>`. Updated all 11 workflow executor tests to use `async`/`await`. Added cross-origin `Access-Control-Allow-Origin` header reflection for SSE connections in the SSE endpoint. Added a 15-second heartbeat interval that writes `:heartbeat\n\n` comments and clears on connection close. Added a `notice` state and `flashNotice` callback to the operator console that shows a green success message for 4 seconds after approve/reject. Added `.noticeText` CSS class. Added `corepack pnpm demo` script to `package.json` that sets both delay environment variables. Created `AGENTS.md` with workspace layout, architecture quick reference, testing notes, and key constraints. Updated README, DEMO.md, and PLAN.md to document demo mode and the new behavior.
+> See [full transcript](ai/10-maintenance.md#complete-interaction).
 
 ### Author decisions
 

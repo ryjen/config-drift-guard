@@ -55,7 +55,7 @@ export function OperatorConsole({ apiBaseUrl, environments }: OperatorConsolePro
 
     async function restoreRun(): Promise<void> {
       setError(null);
-      await refreshRun(apiBaseUrl, restoredRunId, setSnapshot, setError);
+      await refreshRun(apiBaseUrl, restoredRunId, setSnapshot, setEnvironmentId, setError);
     }
 
     void restoreRun();
@@ -70,7 +70,7 @@ export function OperatorConsole({ apiBaseUrl, environments }: OperatorConsolePro
     eventSource.addEventListener("run-change", (message) => {
       const notification = JSON.parse(message.data) as LiveNotification;
       setLiveNotifications((current) => [notification, ...current].slice(0, 8));
-      void refreshRun(apiBaseUrl, notification.runId, setSnapshot, setError);
+      void refreshRun(apiBaseUrl, notification.runId, setSnapshot, setEnvironmentId, setError);
     });
     return () => eventSource.close();
   }, [activeRunId, apiBaseUrl]);
@@ -218,6 +218,7 @@ async function refreshRun(
   apiBaseUrl: string,
   runId: string,
   setSnapshot: (snapshot: RunSnapshot) => void,
+  setEnvironmentId: (id: string) => void,
   setError: (message: string | null) => void,
 ): Promise<void> {
   const response = await fetch(`${apiBaseUrl}/api/runs/${runId}`, { cache: "no-store" });
@@ -228,6 +229,7 @@ async function refreshRun(
 
   const nextSnapshot = (await response.json()) as RunSnapshot;
   setSnapshot(nextSnapshot);
+  setEnvironmentId(nextSnapshot.run.environmentId);
   setError(null);
   window.localStorage.setItem(lastRunStorageKey, nextSnapshot.run.id);
 }
@@ -250,7 +252,15 @@ function RunDetails({
       <article className="panel widePanel">
         <h2>Findings</h2>
         {snapshot.findings.length === 0 ? (
-          <p className="emptyState">No drift found.</p>
+          <p className="emptyState">
+            {["queued", "running"].includes(snapshot.run.status)
+              ? "Findings pending."
+              : snapshot.run.status === "failed"
+                ? "Findings unavailable."
+                : snapshot.run.status === "succeeded"
+                  ? "Verification found no remaining drift."
+                  : "No drift found."}
+          </p>
         ) : (
           <div className="findingList">
             {snapshot.findings.map((finding) => (
@@ -295,7 +305,13 @@ function RunDetails({
       <article className="panel widePanel">
         <h2>Remediation plan</h2>
         {snapshot.plan === null ? (
-          <p className="emptyState">No plan generated.</p>
+          <p className="emptyState">
+            {["queued", "running"].includes(snapshot.run.status)
+              ? "Plan pending."
+              : snapshot.run.status === "failed"
+                ? "Plan unavailable."
+                : "No plan generated."}
+          </p>
         ) : (
           <>
             <dl className="compactFacts planFacts">

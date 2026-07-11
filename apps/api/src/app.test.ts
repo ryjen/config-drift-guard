@@ -197,6 +197,38 @@ describe("API health", () => {
     database.close();
   });
 
+  it("rejects reset while an active run exists", async () => {
+    const database = createDatabase(":memory:");
+    const repository = new PersistenceRepository(database.db);
+    repository.seedServiceConfigEnvironment();
+    const app = await buildApp({ database, serviceConfigObservedPath: createObservedPath() });
+
+    const runResponse = await app.inject({
+      method: "POST",
+      url: "/api/environments/env_service_config/runs",
+    });
+    expect(runResponse.statusCode).toBe(201);
+    const created = runResponse.json();
+
+    await expect
+      .poll(async () => {
+        const response = await app.inject({ method: "GET", url: `/api/runs/${created.run.id}` });
+        return response.json().run.status;
+      })
+      .toBe("awaiting_approval");
+
+    const resetResponse = await app.inject({
+      method: "POST",
+      url: "/api/environments/env_service_config/reset",
+      payload: {},
+    });
+    expect(resetResponse.statusCode).toBe(409);
+    expect(resetResponse.json()).toEqual({ error: "active_run_exists" });
+
+    await app.close();
+    database.close();
+  });
+
   it("recovers interrupted runs when the API starts", async () => {
     const database = createDatabase(":memory:");
     const repository = new PersistenceRepository(database.db);
