@@ -102,7 +102,7 @@ export class WorkflowExecutor {
       startStep(this.repository, runId, activeStep);
       const canonical = this.adapter.normalizeCanonical(canonicalRaw);
       const observed = this.adapter.normalizeObserved(observedRaw, canonical.resourceId);
-      const canonicalDigest = digestNormalizedResourceState(canonical);
+      const canonicalDigest = digestCanonicalEvidence(canonical);
       const observedDigest = digestNormalizedResourceState(observed);
       completeStep(
         this.repository,
@@ -182,7 +182,7 @@ export class WorkflowExecutor {
       const canonicalRaw = this.adapter.loadCanonical();
       this.adapter.validateCanonical(canonicalRaw);
       const canonical = this.adapter.normalizeCanonical(canonicalRaw);
-      const currentCanonicalDigest = digestNormalizedResourceState(canonical);
+      const currentCanonicalDigest = digestCanonicalEvidence(canonical);
       if (currentCanonicalDigest !== snapshot.plan.canonicalDigest) {
         throw new StaleCanonicalStateError(snapshot.plan.canonicalDigest, currentCanonicalDigest);
       }
@@ -264,6 +264,14 @@ export class WorkflowExecutor {
       return this.repository.getRunSnapshot(runId);
     }
   }
+}
+
+function digestCanonicalEvidence(state: NormalizedResourceState): string {
+  return digestJson({
+    resourceId: state.resourceId,
+    managedFields: [...state.managedFields].sort((left, right) => left.localeCompare(right)),
+    managedStateDigest: digestNormalizedResourceState(state),
+  });
 }
 
 function toPersistedFinding(finding: DriftFinding): Omit<Finding, "id" | "runId"> {
