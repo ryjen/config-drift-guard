@@ -13,6 +13,7 @@ import { z } from "zod";
 import { DocumentationAdapter } from "./adapters/documentation.js";
 import { ServiceConfigAdapter } from "./adapters/service-config.js";
 import { apiError } from "./api-error.js";
+import { isActiveRunConstraintError } from "./persistence/constraint-errors.js";
 import { createDatabase, type DatabaseHandle } from "./persistence/database.js";
 import { PersistenceRepository } from "./persistence/repository.js";
 import { WorkflowExecutor } from "./workflow-executor.js";
@@ -131,7 +132,20 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         );
       }
 
-      const run = repository.createQueuedRun(environment.id);
+      let run: ReturnType<typeof repository.createQueuedRun>;
+      try {
+        run = repository.createQueuedRun(environment.id);
+      } catch (error) {
+        if (isActiveRunConstraintError(error)) {
+          reply.code(409);
+          return apiError(
+            "active_run_exists",
+            "An active run already exists for this environment",
+            requestId,
+          );
+        }
+        throw error;
+      }
       const snapshot = repository.getRunSnapshot(run.id);
       const executor = new WorkflowExecutor(
         repository,
@@ -297,6 +311,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       Connection: "keep-alive",
       "Content-Type": "text/event-stream",
       "X-Accel-Buffering": "no",
+      "X-Request-Id": request.id,
       ...(requestOrigin !== undefined ? { "Access-Control-Allow-Origin": requestOrigin } : {}),
     });
 
