@@ -5,6 +5,7 @@ import {
   type DriftFinding,
   digestJson,
   digestNormalizedResourceState,
+  type NormalizedResourceState,
 } from "@config-drift-guard/drift-engine";
 import { ZodError } from "zod";
 import { ServiceConfigAdapter, StaleRemediationPlanError } from "./adapters/service-config.js";
@@ -36,15 +37,21 @@ export interface DriftAdapter {
   loadCanonical(): JsonValue;
   loadObserved(): JsonValue;
   validateCanonical(input: JsonValue): void;
-  normalizeCanonical(input: JsonValue): ReturnType<ServiceConfigAdapter["normalizeCanonical"]>;
-  normalizeObserved(
-    input: JsonValue,
-    resourceId: string,
-  ): ReturnType<ServiceConfigAdapter["normalizeObserved"]>;
+  normalizeCanonical(input: JsonValue): NormalizedResourceState;
+  normalizeObserved(input: JsonValue, resourceId: string): NormalizedResourceState;
   applyTarget(
     expectedObservedDigest: string,
     target: JsonValue,
   ): ReturnType<ServiceConfigAdapter["applyTarget"]>;
+}
+
+export class StaleCanonicalStateError extends Error {
+  constructor(
+    readonly expectedCanonicalDigest: string,
+    readonly currentCanonicalDigest: string,
+  ) {
+    super("stale_canonical_state");
+  }
 }
 
 function delay(ms: number): Promise<void> {
@@ -174,6 +181,14 @@ export class WorkflowExecutor {
       const canonicalRaw = this.adapter.loadCanonical();
       this.adapter.validateCanonical(canonicalRaw);
       const canonical = this.adapter.normalizeCanonical(canonicalRaw);
+      const currentCanonicalDigest = digestNormalizedResourceState(canonical);
+      if (currentCanonicalDigest !== snapshot.plan.canonicalDigest) {
+        throw new StaleCanonicalStateError(
+          snapshot.plan.canonicalDigest,
+          currentCanonicalDigest,
+        );
+      }
+
       const observedBefore = this.adapter.normalizeObserved(
         this.adapter.loadObserved(),
         canonical.resourceId,
@@ -195,8 +210,13 @@ export class WorkflowExecutor {
         this.repository,
         runId,
         activeStep,
-        { expectedObservedDigest: snapshot.plan.expectedObservedDigest, currentObservedDigest },
-        "Observed digest matches immutable plan",
+        {
+          expectedCanonicalDigest: snapshot.plan.canonicalDigest,
+          currentCanonicalDigest,
+          expectedObservedDigest: snapshot.plan.expectedObservedDigest,
+          currentObservedDigest,
+        },
+        "Canonical and observed digests match immutable plan",
       );
       await delay(this.phaseDelay);
 
@@ -278,6 +298,17 @@ function severitySummary(findings: readonly DriftFinding[]): JsonValue {
 }
 
 function toErrorEnvelope(error: unknown): ErrorEnvelope {
+  if (error instanceof StaleCanonicalStateError) {
+    return {
+      code: "stale_canonical_state",
+      message: "Canonical state changed after the remediation plan was generated",
+      detail: {
+        expectedCanonicalDigest: error.expectedCanonicalDigest,
+        currentCanonicalDigest: error.currentCanonicalDigest,
+      },
+    };
+  }
+
   if (error instanceof StaleRemediationPlanError) {
     return {
       code: "stale_remediation_plan",
