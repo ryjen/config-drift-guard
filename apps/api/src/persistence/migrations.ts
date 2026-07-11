@@ -1,3 +1,5 @@
+import type Database from "better-sqlite3";
+
 export const initialMigrationSql = `
 PRAGMA foreign_keys = ON;
 
@@ -77,8 +79,50 @@ CREATE TABLE IF NOT EXISTS events (
   payload TEXT NOT NULL,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-
-CREATE UNIQUE INDEX IF NOT EXISTS runs_one_active_per_env
-  ON runs(environment_id)
-  WHERE status IN ('queued', 'running', 'awaiting_approval');
 `;
+
+const activeRunRecoveryError = JSON.stringify({
+  code: "duplicate_active_run_recovered",
+  message: "Run was terminalized while enforcing one active run per environment",
+});
+
+export function applyMigrations(sqlite: Database.Database): void {
+  sqlite.transaction(() => {
+    sqlite.exec(initialMigrationSql);
+
+    sqlite
+      .prepare(
+        `
+        WITH ranked_active_runs AS (
+          SELECT
+            id,
+            ROW_NUMBER() OVER (
+              PARTITION BY environment_id
+              ORDER BY updated_at DESC, created_at DESC, id DESC
+            ) AS active_rank
+          FROM runs
+          WHERE status IN ('queued', 'running', 'awaiting_approval')
+        )
+        UPDATE runs
+        SET
+          status = 'failed',
+          current_step = NULL,
+          error = ?,
+          version = version + 1,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id IN (
+          SELECT id
+          FROM ranked_active_runs
+          WHERE active_rank > 1
+        )
+        `,
+      )
+      .run(activeRunRecoveryError);
+
+    sqlite.exec(`
+      CREATE UNIQUE INDEX IF NOT EXISTS runs_one_active_per_env
+        ON runs(environment_id)
+        WHERE status IN ('queued', 'running', 'awaiting_approval');
+    `);
+  })();
+}
