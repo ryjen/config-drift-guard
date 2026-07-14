@@ -162,6 +162,7 @@ The project demonstrates:
 
 ## Documentation
 
+- [Plain-language explanation](docs/EXPLAINED-SIMPLY.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Current understanding](docs/CURRENT-UNDERSTANDING.md)
 - [Project plan](docs/PLAN.md)
