@@ -4,6 +4,40 @@ Issue: [#10](https://github.com/ryjen/config-drift-guard/issues/10), with the te
 
 ## Run
 
+## NixOS / reproducible browser runtime (x86_64-linux)
+
+Use the repo's `flake.nix` for Node 24, Corepack, and Nix-packaged
+Chromium. Its nixpkgs input is pinned to the revision whose
+`playwright-driver` version is **1.56.1**, matching the root
+`@playwright/test` dependency. A Nix assertion prevents accidental
+driver/npm version skew.
+
+```sh
+nix develop
+corepack pnpm install --frozen-lockfile
+corepack pnpm check
+corepack pnpm test:e2e
+```
+
+Alternatively, in one invocation:
+
+```sh
+nix develop -c bash -c 'corepack pnpm install --frozen-lockfile && corepack pnpm check && corepack pnpm test:e2e'
+```
+
+The flake sets `PLAYWRIGHT_BROWSERS_PATH` to the patched Nix browser
+closure and disables the upstream browser download. **Do not run
+`playwright install chromium` inside the Nix shell**: it would download
+an Ubuntu browser that cannot run on unmodified NixOS. The host-library
+validation skip applies only inside this development shell; an actual
+browser launch and passing Playwright assertions are still required.
+
+The flake input URL is pinned by full nixpkgs commit ID. If a generated
+`flake.lock` is not yet present, run `nix flake lock` with Nix installed
+and commit it after evaluating the shell. Update the lock, nixpkgs pin,
+and npm Playwright version together. Do not assume that creating a flake
+alone constitutes browser-runtime validation.
+
 Use Node 24 and pnpm 10.13.1 in a Linux environment supported by Playwright Chromium:
 
 ```sh
