@@ -421,6 +421,7 @@ function RunDetails({
 
       <article className="panel widePanel">
         <h2>Live workflow timeline</h2>
+        <p role="status">Progress connection: {connectionState}</p>
         {liveNotifications.length === 0 ? (
           <p className="emptyState">Waiting for compact SSE notifications.</p>
         ) : (
