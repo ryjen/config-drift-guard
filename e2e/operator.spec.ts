@@ -9,6 +9,12 @@ const observedPath = resolve("apps/api/data/e2e-service.observed.json");
 
 type SseProbe = { sources: Array<{ closeCalls: number }> };
 
+declare global {
+  interface Window {
+    __sseProbe: SseProbe;
+  }
+}
+
 async function instrumentSse(page: Page): Promise<void> {
   await page.addInitScript(() => {
     const probe: SseProbe = { sources: [] };
