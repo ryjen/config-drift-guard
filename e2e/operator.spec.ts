@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { expect, type Page, test } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { expect, test } from "./api-fixture";
 
 const apiUrl = "http://127.0.0.1:4000";
 const environment = "env_service_config";
