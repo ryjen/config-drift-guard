@@ -2,14 +2,12 @@ import { spawn } from "node:child_process";
 import { resolve } from "node:path";
 import { test as base, expect } from "@playwright/test";
 
-const apiUrl = "http://127.0.0.1:4000";
-
 // The web server is suite-scoped, but each test receives an independent API process
 // and in-memory database. Failed/aborted tests cannot poison later cases.
 export const test = base.extend<{ apiServer: undefined }>({
   apiServer: [
     async ({ browserName: _browserName }, use) => {
-      const child = spawn(process.execPath, [resolve("apps/api/dist/server.js")], {
+      const child = spawn(process.execPath, [resolve("e2e/api-child.mjs")], {
         cwd: resolve("apps/api"),
         env: {
           ...process.env,
@@ -20,32 +18,46 @@ export const test = base.extend<{ apiServer: undefined }>({
           QUEUE_DELAY_MS: "200",
           PHASE_DELAY_MS: "60",
         },
-        stdio: "ignore",
+        stdio: ["ignore", "ignore", "ignore", "ipc"],
       });
-      let spawnError: Error | null = null;
-      child.on("error", (error) => {
-        spawnError = error;
+      const ready = new Promise<void>((resolveReady, rejectReady) => {
+        const timeout = setTimeout(() => {
+          cleanup();
+          rejectReady(new Error("E2E API IPC readiness timeout"));
+        }, 15_000);
+        const cleanup = () => {
+          clearTimeout(timeout);
+          child.off("message", onMessage);
+          child.off("error", onError);
+          child.off("exit", onExit);
+        };
+        const onMessage = (message: unknown) => {
+          if (
+            typeof message === "object" &&
+            message !== null &&
+            "type" in message &&
+            message.type === "ready"
+          ) {
+            cleanup();
+            resolveReady();
+          }
+        };
+        const onError = (error: Error) => {
+          cleanup();
+          rejectReady(error);
+        };
+        const onExit = (code: number | null, signal: NodeJS.Signals | null) => {
+          cleanup();
+          rejectReady(new Error(`E2E API exited before binding (code=${code}, signal=${signal})`));
+        };
+        child.on("message", onMessage);
+        child.once("error", onError);
+        child.once("exit", onExit);
       });
 
       try {
-        const deadline = Date.now() + 15_000;
-        while (true) {
-          if (spawnError !== null) throw spawnError;
-          if (child.exitCode !== null || child.signalCode !== null) {
-            throw new Error("E2E API exited before becoming healthy");
-          }
-          try {
-            const response = await fetch(`${apiUrl}/health`, {
-              signal: AbortSignal.timeout(500),
-            });
-            if (response.ok) break;
-          } catch {
-            // Initial connection refusal is expected while the API starts.
-          }
-          if (Date.now() >= deadline) throw new Error("E2E API health timeout");
-          await new Promise((resolve) => setTimeout(resolve, 100));
-        }
-
+        // Do not trust an HTTP 200 from some other service on port 4000.
+        await ready;
         await use(undefined);
       } finally {
         if (child.exitCode === null && child.signalCode === null) {
