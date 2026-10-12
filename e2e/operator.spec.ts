@@ -13,7 +13,7 @@ async function instrumentSse(page: Page): Promise<void> {
   await page.addInitScript(() => {
     const probe: SseProbe = { sources: [] };
     const entries = new WeakMap<EventSource, { closeCalls: number }>();
-    (window as Window & { __sseProbe: SseProbe }).__sseProbe = probe;
+    (window as unknown as Window & { __sseProbe: SseProbe }).__sseProbe = probe;
     const OriginalEventSource = window.EventSource;
     window.EventSource = class extends OriginalEventSource {
       constructor(url: string | URL, options?: EventSourceInit) {
@@ -36,7 +36,7 @@ async function expectNoSseLeak(page: Page): Promise<void> {
   await expect
     .poll(() =>
       page.evaluate(() => {
-        const probe = (window as Window & { __sseProbe: SseProbe }).__sseProbe;
+        const probe = (window as unknown as Window & { __sseProbe: SseProbe }).__sseProbe;
         return probe.sources.length > 0 && probe.sources.every((source) => source.closeCalls === 1);
       }),
     )
