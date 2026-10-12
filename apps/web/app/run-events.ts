@@ -24,7 +24,8 @@ export function isTerminalRun(status: string): boolean {
 export function subscribeToRunProgress(options: SubscriptionOptions): () => void {
   let closed = false;
   options.onState("connecting");
-  const source = options.createSource?.(`${options.apiBaseUrl}/api/runs/${options.runId}/events`) ??
+  const source =
+    options.createSource?.(`${options.apiBaseUrl}/api/runs/${options.runId}/events`) ??
     new EventSource(`${options.apiBaseUrl}/api/runs/${options.runId}/events`);
   source.onopen = () => {
     if (closed) return;
@@ -43,7 +44,8 @@ export function subscribeToRunProgress(options: SubscriptionOptions): () => void
         notification === null ||
         !("runId" in notification) ||
         notification.runId !== options.runId
-      ) return;
+      )
+        return;
       options.onChange(notification);
     } catch {
       options.onInvalidEvent();
