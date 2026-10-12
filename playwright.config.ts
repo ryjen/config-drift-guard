@@ -23,7 +23,7 @@ export default defineConfig({
       reuseExistingServer: false,
       timeout: 30_000,
       env: {
-        CONFIG_DRIFT_GUARD_DB: "data/e2e.sqlite",
+        CONFIG_DRIFT_GUARD_DB: ":memory:",
         CONFIG_DRIFT_GUARD_OBSERVED_STATE: "data/e2e-service.observed.json",
         QUEUE_DELAY_MS: "200",
         PHASE_DELAY_MS: "60",

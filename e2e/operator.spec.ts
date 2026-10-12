@@ -6,20 +6,24 @@ const apiUrl = "http://127.0.0.1:4000";
 const environment = "env_service_config";
 const observedPath = resolve("apps/api/data/e2e-service.observed.json");
 
-type SseProbe = { created: number; closed: number };
+type SseProbe = { sources: Array<{ closeCalls: number }> };
 
 async function instrumentSse(page: Page): Promise<void> {
   await page.addInitScript(() => {
-    const probe: SseProbe = { created: 0, closed: 0 };
+    const probe: SseProbe = { sources: [] };
+    const entries = new WeakMap<EventSource, { closeCalls: number }>();
     (window as Window & { __sseProbe: SseProbe }).__sseProbe = probe;
     const OriginalEventSource = window.EventSource;
     window.EventSource = class extends OriginalEventSource {
       constructor(url: string | URL, options?: EventSourceInit) {
         super(url, options);
-        probe.created += 1;
+        const entry = { closeCalls: 0 };
+        probe.sources.push(entry);
+        entries.set(this, entry);
       }
       override close(): void {
-        probe.closed += 1;
+        const entry = entries.get(this);
+        if (entry !== undefined) entry.closeCalls += 1;
         super.close();
       }
     };
@@ -32,7 +36,7 @@ async function expectNoSseLeak(page: Page): Promise<void> {
     .poll(() =>
       page.evaluate(() => {
         const probe = (window as Window & { __sseProbe: SseProbe }).__sseProbe;
-        return probe.created > 0 && probe.closed >= probe.created;
+        return probe.sources.length > 0 && probe.sources.every((source) => source.closeCalls === 1);
       }),
     )
     .toBe(true);
