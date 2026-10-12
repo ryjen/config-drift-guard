@@ -15,7 +15,7 @@ corepack pnpm test:e2e
 
 When running in an ephemeral Linux CI image without Chromium system libraries, install its OS dependencies as part of provisioning (for example `playwright install --with-deps chromium` on a supported Ubuntu runner).
 
-The Playwright config starts separate built API and Next.js servers on loopback (ports 4000 and 3000). The API uses a fresh in-memory SQLite database per E2E server invocation and `data/e2e-service.observed.json` as its dedicated observed fixture, not the normal operator fixture. Runs are deliberately serialized to avoid shared-fixture races. The suite resets its fixture through the API before each test.
+The Playwright config starts the built Next.js server on loopback port 3000. An automatic per-test fixture starts and terminates a separate built API process on loopback port 4000 with fresh in-memory SQLite, so a failed or interrupted test cannot retain an active run for the next test. The API uses `data/e2e-service.observed.json` as its dedicated observed fixture, not the normal operator fixture; each test resets this file through the API. Tests are serialized to avoid port/fixture races.
 
 ## Coverage
 
