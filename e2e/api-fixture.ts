@@ -1,14 +1,14 @@
 import { spawn } from "node:child_process";
 import { resolve } from "node:path";
-import { expect, test as base } from "@playwright/test";
+import { test as base, expect } from "@playwright/test";
 
 const apiUrl = "http://127.0.0.1:4000";
 
 // The web server is suite-scoped, but each test receives an independent API process
 // and in-memory database. Failed/aborted tests cannot poison later cases.
-export const test = base.extend<{ apiServer: void }>({
+export const test = base.extend<{ apiServer: undefined }>({
   apiServer: [
-    async ({}, use) => {
+    async ({ browserName: _browserName }, use) => {
       const child = spawn(process.execPath, [resolve("apps/api/dist/server.js")], {
         cwd: resolve("apps/api"),
         env: {
@@ -46,7 +46,7 @@ export const test = base.extend<{ apiServer: void }>({
           await new Promise((resolve) => setTimeout(resolve, 100));
         }
 
-        await use();
+        await use(undefined);
       } finally {
         if (child.exitCode === null && child.signalCode === null) {
           await new Promise<void>((resolve) => {
