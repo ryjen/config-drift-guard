@@ -95,7 +95,7 @@ curl -X POST http://127.0.0.1:4000/api/environments/env_service_config/reset \
   -d '{}'
 ```
 
-This restores the seeded observed state. Browser-submitted payloads with extra fields (e.g., `{"path": "/tmp/unsafe"}`) return `400 invalid_reset_request`.
+This restores the seeded observed state. Browser-submitted payloads with extra fields (e.g., `{"path": "/tmp/unsafe"}`) return HTTP 400 with error code `invalid_request` in the shared API error envelope.
 
 ## Production build
 

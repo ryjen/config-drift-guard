@@ -123,9 +123,10 @@ describe("PersistenceRepository", () => {
   it("recovers interrupted queued and running runs on startup", () => {
     const handle = createDatabase(":memory:");
     const repository = new PersistenceRepository(handle.db);
-    const environment = repository.seedServiceConfigEnvironment();
-    const queued = repository.createQueuedRun(environment.id);
-    const running = repository.createQueuedRun(environment.id);
+    const env1 = repository.seedServiceConfigEnvironment();
+    const queued = repository.createQueuedRun(env1.id);
+    const env2 = repository.seedDocumentationEnvironment();
+    const running = repository.createQueuedRun(env2.id);
     startRun(repository, running.id);
     startStep(repository, running.id, "calculate_drift");
 
