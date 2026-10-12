@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { isTerminalRun, subscribeToRunProgress, type ProgressEventSource } from "./run-events";
+import { isTerminalRun, type ProgressEventSource, subscribeToRunProgress } from "./run-events";
 
 class FakeSource implements ProgressEventSource {
   onopen: (() => void) | null = null;
