@@ -4,6 +4,7 @@ import { isTerminalRun, type ProgressEventSource, subscribeToRunProgress } from 
 class FakeSource implements ProgressEventSource {
   onopen: (() => void) | null = null;
   onerror: (() => void) | null = null;
+  readyState = 0;
   readonly listeners = new Map<string, (event: MessageEvent) => void>();
   readonly close = vi.fn();
 
@@ -41,6 +42,7 @@ describe("SSE progress lifecycle", () => {
     });
 
     source.onopen?.();
+    source.readyState = 0;
     source.onerror?.();
     source.onopen?.();
     source.send({ runId: "other", version: 1 });
@@ -57,5 +59,24 @@ describe("SSE progress lifecycle", () => {
     expect(onChange).toHaveBeenCalledTimes(1);
     expect(onOpen).toHaveBeenCalledTimes(2);
     expect(states.at(-1)).toBe("closed");
+  });
+
+  it("reports permanently failed streams as closed rather than reconnecting", () => {
+    const source = new FakeSource();
+    const states: string[] = [];
+    const stop = subscribeToRunProgress({
+      apiBaseUrl: "http://localhost:4000",
+      runId: "run_1",
+      onState: (state) => states.push(state),
+      onOpen: vi.fn(),
+      onChange: vi.fn(),
+      onInvalidEvent: vi.fn(),
+      createSource: () => source,
+    });
+    source.readyState = 2;
+    source.onerror?.();
+    expect(states).toEqual(["connecting", "closed"]);
+    stop();
+    expect(source.close).toHaveBeenCalledTimes(1);
   });
 });
