@@ -1,6 +1,7 @@
 export type ProgressConnectionState = "connecting" | "live" | "reconnecting" | "closed";
 
 export interface ProgressEventSource {
+  readonly readyState: number;
   onopen: (() => void) | null;
   onerror: (() => void) | null;
   addEventListener(type: string, listener: (event: MessageEvent) => void): void;
@@ -33,7 +34,7 @@ export function subscribeToRunProgress(options: SubscriptionOptions): () => void
     options.onOpen();
   };
   source.onerror = () => {
-    if (!closed) options.onState("reconnecting");
+    if (!closed) options.onState(source.readyState === 2 ? "closed" : "reconnecting");
   };
   source.addEventListener("run-change", (message) => {
     if (closed) return;
