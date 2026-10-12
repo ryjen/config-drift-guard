@@ -15,6 +15,12 @@
       packageJson = builtins.fromJSON (builtins.readFile ./package.json);
       playwrightVersion = packageJson.devDependencies."@playwright/test";
       driver = pkgs.playwright-driver;
+      # Limit the browser closure to the Chromium UI scenarios. Keeping
+      # Firefox/WebKit would download unrelated runtimes on NixOS.
+      chromiumBrowsers = driver.browsers.override {
+        withFirefox = false;
+        withWebkit = false;
+      };
     in
     {
       devShells.${system}.default =
@@ -25,10 +31,10 @@
             nodejs_24
             corepack
             python3
-            driver.browsers
+            chromiumBrowsers
           ];
 
-          PLAYWRIGHT_BROWSERS_PATH = "${driver.browsers}";
+          PLAYWRIGHT_BROWSERS_PATH = "${chromiumBrowsers}";
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = "1";
           # Nix provides the runtime libraries in its patched browser closure;
           # Playwright's FHS-based host dependency probe cannot detect them.
