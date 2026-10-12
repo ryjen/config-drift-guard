@@ -24,7 +24,7 @@ Record:
 
 ## Full transcripts
 
-Complete verbatim chat sessions are in [`docs/ai/`](ai/):
+Session records and historical transcripts are in [`docs/ai/`](ai/). Transcript completeness must be verified per entry; Session 12 is explicitly a summary with exact user messages, not a full exported chat:
 
 | Session | File |
 | ------- | ---- |
@@ -40,6 +40,7 @@ Complete verbatim chat sessions are in [`docs/ai/`](ai/):
 | 09 — Documentation and submission | [`09-documentation-submission.md`](ai/09-documentation-submission.md) |
 | 10 — Maintenance | [`10-maintenance.md`](ai/10-maintenance.md) |
 | 11 — P1 correctness fixes | [`11-p1-correctness-fixes.md`](ai/11-p1-correctness-fixes.md) |
+| 12 — Meta-review and merge-gate (summary, full export pending) | [`12-meta-review-2026-10-12.md`](ai/12-meta-review-2026-10-12.md) |
 
 ## Important decisions already established
 
