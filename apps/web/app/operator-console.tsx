@@ -25,7 +25,10 @@ export function OperatorConsole({ apiBaseUrl, environments }: OperatorConsolePro
   const [liveNotifications, setLiveNotifications] = useState<LiveNotification[]>([]);
   const [isPending, startTransition] = useTransition();
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const activeRunId = snapshot?.run.id ?? null;
+  const activeRunId = snapshot !== null && !["succeeded", "failed", "rejected"].includes(snapshot.run.status)
+    ? snapshot.run.id
+    : null;
+  const [connectionState, setConnectionState] = useState<"connecting" | "live" | "reconnecting" | "closed">("closed");
 
   const flashNotice = useCallback((message: string) => {
     if (noticeTimer.current !== null) {
@@ -63,16 +66,34 @@ export function OperatorConsole({ apiBaseUrl, environments }: OperatorConsolePro
 
   useEffect(() => {
     if (activeRunId === null) {
+      setConnectionState("closed");
       return;
     }
 
+    setConnectionState("connecting");
     const eventSource = new EventSource(`${apiBaseUrl}/api/runs/${activeRunId}/events`);
+    eventSource.onopen = () => {
+      setConnectionState("live");
+      // SSE is notification-only; a fresh snapshot is authoritative after reconnect.
+      void refreshRun(apiBaseUrl, activeRunId, setSnapshot, setEnvironmentId, setError);
+    };
+    eventSource.onerror = () => {
+      setConnectionState("reconnecting");
+    };
     eventSource.addEventListener("run-change", (message) => {
-      const notification = JSON.parse(message.data) as LiveNotification;
-      setLiveNotifications((current) => [notification, ...current].slice(0, 8));
-      void refreshRun(apiBaseUrl, notification.runId, setSnapshot, setEnvironmentId, setError);
+      try {
+        const notification = JSON.parse(message.data) as LiveNotification;
+        if (notification.runId !== activeRunId) return;
+        setLiveNotifications((current) => [notification, ...current].slice(0, 8));
+        void refreshRun(apiBaseUrl, activeRunId, setSnapshot, setEnvironmentId, setError);
+      } catch {
+        setError("Invalid progress notification; refresh the run snapshot.");
+      }
     });
-    return () => eventSource.close();
+    return () => {
+      eventSource.close();
+      setConnectionState("closed");
+    };
   }, [activeRunId, apiBaseUrl]);
 
   const selectedEnvironment = environments.find((environment) => environment.id === environmentId);
@@ -207,6 +228,7 @@ export function OperatorConsole({ apiBaseUrl, environments }: OperatorConsolePro
         <RunDetails
           isPending={isPending}
           liveNotifications={liveNotifications}
+          connectionState={connectionState}
           onDecision={decideRun}
           snapshot={snapshot}
         />
@@ -257,11 +279,13 @@ function describeApiError(payload: unknown, status: number): string {
 function RunDetails({
   isPending,
   liveNotifications,
+  connectionState,
   onDecision,
   snapshot,
 }: {
   readonly isPending: boolean;
   readonly liveNotifications: readonly LiveNotification[];
+  readonly connectionState: "connecting" | "live" | "reconnecting" | "closed";
   readonly onDecision: (action: "approve" | "reject") => void;
   readonly snapshot: RunSnapshot;
 }) {
