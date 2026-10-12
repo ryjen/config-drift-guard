@@ -25,10 +25,13 @@ export function OperatorConsole({ apiBaseUrl, environments }: OperatorConsolePro
   const [liveNotifications, setLiveNotifications] = useState<LiveNotification[]>([]);
   const [isPending, startTransition] = useTransition();
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const activeRunId = snapshot !== null && !["succeeded", "failed", "rejected"].includes(snapshot.run.status)
-    ? snapshot.run.id
-    : null;
-  const [connectionState, setConnectionState] = useState<"connecting" | "live" | "reconnecting" | "closed">("closed");
+  const activeRunId =
+    snapshot !== null && !["succeeded", "failed", "rejected"].includes(snapshot.run.status)
+      ? snapshot.run.id
+      : null;
+  const [connectionState, setConnectionState] = useState<
+    "connecting" | "live" | "reconnecting" | "closed"
+  >("closed");
 
   const flashNotice = useCallback((message: string) => {
     if (noticeTimer.current !== null) {
