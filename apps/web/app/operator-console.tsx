@@ -2,7 +2,7 @@
 
 import type { Environment, RunSnapshot } from "@config-drift-guard/contracts";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
-import { isTerminalRun, subscribeToRunProgress, type ProgressConnectionState } from "./run-events";
+import { isTerminalRun, type ProgressConnectionState, subscribeToRunProgress } from "./run-events";
 
 const lastRunStorageKey = "config-drift-guard:last-run-id";
 
@@ -27,9 +27,7 @@ export function OperatorConsole({ apiBaseUrl, environments }: OperatorConsolePro
   const [isPending, startTransition] = useTransition();
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeRunId =
-    snapshot !== null && !isTerminalRun(snapshot.run.status)
-      ? snapshot.run.id
-      : null;
+    snapshot !== null && !isTerminalRun(snapshot.run.status) ? snapshot.run.id : null;
   const [connectionState, setConnectionState] = useState<ProgressConnectionState>("closed");
 
   const flashNotice = useCallback((message: string) => {
