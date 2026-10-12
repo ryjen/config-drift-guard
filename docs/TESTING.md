@@ -32,11 +32,26 @@ an Ubuntu browser that cannot run on unmodified NixOS. The host-library
 validation skip applies only inside this development shell; an actual
 browser launch and passing Playwright assertions are still required.
 
-The flake input URL is pinned by full nixpkgs commit ID. If a generated
-`flake.lock` is not yet present, run `nix flake lock` with Nix installed
-and commit it after evaluating the shell. Update the lock, nixpkgs pin,
-and npm Playwright version together. Do not assume that creating a flake
-alone constitutes browser-runtime validation.
+The nixpkgs input and committed `flake.lock` pin the same full Git revision
+(`f665af0cdb70ed27e1bd8f9fdfecaf451260fc55`).
+The shell intentionally includes Chromium, Chromium headless shell, and
+FFmpeg, not Firefox or WebKit. Update the lock, nixpkgs pin, and npm
+Playwright version together.
+
+**Validation recorded 2026-10-12:** A temporary, isolated Nix-portable
+bootstrap successfully ran `nix flake lock`, `nix flake show`, and
+`nix develop`. The shell reported Node 24.12.0, Corepack 0.34.5, and a
+three-component browser closure, matching the locked Playwright 1.56.1
+runtime. GitHub Actions `pnpm check` passed at the lockfile commit.
+
+**Browser qualification remains open:** The connected Desktop Commander
+environment does not expose the host Nix installation or permit user
+namespaces. Nix-portable fell back to `proot`; Next.js workers and the
+Chromium smoke process crashed with `double free or corruption` while
+executing inside that emulation. Those crashes do not prove an
+application or native Nix browser defect. Execute `nix develop -c
+corepack pnpm test:e2e` on a trusted host with **native Nix**, record
+the exact PR SHA and Playwright traces, and only then close #7/#10.
 
 Use Node 24 and pnpm 10.13.1 in a Linux environment supported by Playwright Chromium:
 
