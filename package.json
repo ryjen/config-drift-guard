@@ -12,10 +12,12 @@
     "typecheck": "corepack pnpm -r typecheck",
     "lint": "biome check .",
     "format": "biome format --write .",
-    "check": "corepack pnpm lint && corepack pnpm typecheck && corepack pnpm build && corepack pnpm test"
+    "check": "corepack pnpm lint && corepack pnpm typecheck && corepack pnpm build && corepack pnpm test",
+    "test:e2e": "playwright test"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.1.2",
+    "@playwright/test": "1.56.1",
     "typescript": "^5.8.3",
     "vitest": "^3.2.4"
   }
