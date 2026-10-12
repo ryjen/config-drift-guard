@@ -2,6 +2,7 @@
 
 import type { Environment, RunSnapshot } from "@config-drift-guard/contracts";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { isTerminalRun, subscribeToRunProgress, type ProgressConnectionState } from "./run-events";
 
 const lastRunStorageKey = "config-drift-guard:last-run-id";
 
@@ -26,12 +27,10 @@ export function OperatorConsole({ apiBaseUrl, environments }: OperatorConsolePro
   const [isPending, startTransition] = useTransition();
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeRunId =
-    snapshot !== null && !["succeeded", "failed", "rejected"].includes(snapshot.run.status)
+    snapshot !== null && !isTerminalRun(snapshot.run.status)
       ? snapshot.run.id
       : null;
-  const [connectionState, setConnectionState] = useState<
-    "connecting" | "live" | "reconnecting" | "closed"
-  >("closed");
+  const [connectionState, setConnectionState] = useState<ProgressConnectionState>("closed");
 
   const flashNotice = useCallback((message: string) => {
     if (noticeTimer.current !== null) {
@@ -73,30 +72,20 @@ export function OperatorConsole({ apiBaseUrl, environments }: OperatorConsolePro
       return;
     }
 
-    setConnectionState("connecting");
-    const eventSource = new EventSource(`${apiBaseUrl}/api/runs/${activeRunId}/events`);
-    eventSource.onopen = () => {
-      setConnectionState("live");
-      // SSE is notification-only; a fresh snapshot is authoritative after reconnect.
-      void refreshRun(apiBaseUrl, activeRunId, setSnapshot, setEnvironmentId, setError);
-    };
-    eventSource.onerror = () => {
-      setConnectionState("reconnecting");
-    };
-    eventSource.addEventListener("run-change", (message) => {
-      try {
-        const notification = JSON.parse(message.data) as LiveNotification;
-        if (notification.runId !== activeRunId) return;
+    return subscribeToRunProgress({
+      apiBaseUrl,
+      runId: activeRunId,
+      onState: setConnectionState,
+      onOpen: () => {
+        void refreshRun(apiBaseUrl, activeRunId, setSnapshot, setEnvironmentId, setError);
+      },
+      onChange: (value) => {
+        const notification = value as LiveNotification;
         setLiveNotifications((current) => [notification, ...current].slice(0, 8));
         void refreshRun(apiBaseUrl, activeRunId, setSnapshot, setEnvironmentId, setError);
-      } catch {
-        setError("Invalid progress notification; refresh the run snapshot.");
-      }
+      },
+      onInvalidEvent: () => setError("Invalid progress notification; refresh the run snapshot."),
     });
-    return () => {
-      eventSource.close();
-      setConnectionState("closed");
-    };
   }, [activeRunId, apiBaseUrl]);
 
   const selectedEnvironment = environments.find((environment) => environment.id === environmentId);
@@ -288,7 +277,7 @@ function RunDetails({
 }: {
   readonly isPending: boolean;
   readonly liveNotifications: readonly LiveNotification[];
-  readonly connectionState: "connecting" | "live" | "reconnecting" | "closed";
+  readonly connectionState: ProgressConnectionState;
   readonly onDecision: (action: "approve" | "reject") => void;
   readonly snapshot: RunSnapshot;
 }) {
