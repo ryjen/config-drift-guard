@@ -72,5 +72,4 @@ export function registerRunRoutes(app: FastifyInstance, orchestrator: RunOrchest
       return runOperationErrorResponse(error, reply, request.id);
     }
   });
-
 }
