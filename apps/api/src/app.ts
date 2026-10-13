@@ -13,7 +13,7 @@ import { z } from "zod";
 import { DocumentationAdapter } from "./adapters/documentation.js";
 import { ServiceConfigAdapter } from "./adapters/service-config.js";
 import { apiError } from "./api-error.js";
-import type { DriftAdapter } from "./application/ports.js";
+import type { DriftAdapter, WorkflowPacer } from "./application/ports.js";
 import { isActiveRunConstraintError } from "./persistence/constraint-errors.js";
 import { createDatabase, type DatabaseHandle } from "./persistence/database.js";
 import { PersistenceRepository } from "./persistence/repository.js";
@@ -21,8 +21,6 @@ import { WorkflowExecutor } from "./workflow-executor.js";
 
 const DECISION_COMMENT_MAX_LENGTH = 1000;
 const LOCAL_ORIGINS = new Set(["localhost", "127.0.0.1", "::1"]);
-const QUEUE_DELAY_MS = Number.parseInt(process.env.QUEUE_DELAY_MS ?? "0", 10) || 0;
-const PHASE_DELAY_MS = Number.parseInt(process.env.PHASE_DELAY_MS ?? "0", 10) || 0;
 
 const decisionRequestSchema = z
   .object({
@@ -44,6 +42,8 @@ export interface BuildAppOptions {
   readonly database?: DatabaseHandle;
   readonly documentationObservedPath?: string;
   readonly serviceConfigObservedPath?: string;
+  readonly workflowPacer?: WorkflowPacer;
+  readonly deferWorkflow?: (callback: () => void) => ReturnType<typeof setTimeout>;
 }
 
 export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyInstance> {
@@ -61,7 +61,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   let isClosing = false;
 
   const scheduleWorkflow = (workflow: () => Promise<unknown>): void => {
-    const timer = setTimeout(() => {
+    const timer = (options.deferWorkflow ?? ((callback: () => void) => setTimeout(callback, 0)))(() => {
       pendingWorkflowTimers.delete(timer);
       if (isClosing) {
         return;
@@ -70,7 +70,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       const execution = workflow();
       activeWorkflows.add(execution);
       void execution.finally(() => activeWorkflows.delete(execution));
-    }, QUEUE_DELAY_MS);
+    });
     pendingWorkflowTimers.add(timer);
   };
 
@@ -177,7 +177,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       const executor = new WorkflowExecutor(
         repository,
         adapters[environment.adapterKind],
-        PHASE_DELAY_MS,
+        options.workflowPacer,
       );
       scheduleWorkflow(() => executor.execute(run.id));
       reply.code(201);
@@ -256,7 +256,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     const executor = new WorkflowExecutor(
       repository,
       adapters[environment.adapterKind],
-      PHASE_DELAY_MS,
+      options.workflowPacer,
     );
     scheduleWorkflow(() => executor.executeReconciliation(snapshot.run.id));
     reply.code(202);
