@@ -47,8 +47,8 @@ apps/web/                    # Next.js 15, single-page operator console ("use cl
 ## Testing
 
 - Tests use in-memory SQLite (`:memory:`) — no external services required.
-- 6 test files, 41 tests total across the workspace.
-- `apps/web` has no tests (`--passWithNoTests`).
+- 8 test files, 43 tests across the workspace (including HTTP SSE transport and web subscription tests).
+- `apps/web` includes unit tests for SSE subscription state transitions.
 - API integration tests (`apps/api/src/app.test.ts`) exercise the full happy path including async approval + reconciliation via polling.
 - No snapshot tests, no MSW, no test containers.
 
