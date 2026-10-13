@@ -73,8 +73,27 @@ The Playwright config starts the built Next.js server on loopback port 3000. An 
 - Stale-plan safety: externally change observed state after a plan, approve, verify failure without overwriting the changed state, then reset and reject a fresh plan.
 - Existing Vitest unit and integration tests continue to cover deterministic comparison, persisted transitions, concurrency, and reconnection logic.
 
+## Opt-in browser CI gate
+
+For a pull request originating **inside this repository**, apply the
+`ci:e2e` GitHub label to run the browser scenarios in the existing CI
+job after `pnpm check`. Browser installation and the E2E step each have
+a five-minute timeout. The gate never executes for fork PRs; the
+workflow retains read-only contents permissions. No additional CI job
+is provisioned, and unlabelled PRs do not download browser runtimes.
+A branch push or other supported PR CI trigger is required after
+labelling.
+
+**Evidence (2026-10-12):** On the hosted Ubuntu runner, PR #18's
+temporary qualification workflow passed both Chromium scenarios in
+[run #65](https://github.com/ryjen/config-drift-guard/actions/runs/38327729208):
+terminal EventSource cleanup/convergence and stale-plan
+failure/reset/rejection. That run used exact commit `34a7532c`.
+The opt-in label implementation supersedes the PR-number-specific
+condition, so its own exact-head CI must be qualified separately.
+
 ## Limitations / runner contract
 
-The E2E suite is **separate from `pnpm check`**, and no new GitHub-hosted browser job is enabled. It needs an explicitly provisioned, trusted Chromium-capable runner before making E2E a blocking CI check. Do not route untrusted fork PR code to a personal self-hosted runner. Keep browser downloads and temporary fixtures outside protected host paths.
+The E2E suite is **separate from `pnpm check`**. The existing GitHub-hosted CI job runs it only when a trusted same-repository PR carries `ci:e2e`; it is not a default required job for other PRs. Qualify changes on a trusted Chromium-capable runner with the label rather than exposing personal self-hosted runners to untrusted changes. Do not route untrusted fork PR code to a personal self-hosted runner. Keep browser downloads and temporary fixtures outside protected host paths.
 
 The initial attempted run on the NixOS Desktop Commander host failed to spawn Playwright's downloaded Ubuntu Chromium executable (`ENOENT`, runtime-loader incompatibility); this is **not** browser-test success or an app regression. Build and existing unit/integration tests passed independently. Record successful browser evidence, including the exact git head, before resolving issue #7 or #10.
