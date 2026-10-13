@@ -45,6 +45,7 @@ Session records and historical transcripts are in [`docs/ai/`](ai/). Transcript 
 | 14 — SSE response-close lifecycle (engineering summary) | [`14-sse-response-close-2026-10-12.md`](ai/14-sse-response-close-2026-10-12.md) |
 | 15 — Clean Architecture Phase 1a, domain error (summary) | [`15-domain-error-phase1a-2026-10-12.md`](ai/15-domain-error-phase1a-2026-10-12.md) |
 | 16 — Application ports and explicit adapter DI (summary) | [`16-application-ports-2026-10-13.md`](ai/16-application-ports-2026-10-13.md) |
+| 17 — Demo runtime isolation (summary) | [`17-demo-runtime-2026-10-13.md`](ai/17-demo-runtime-2026-10-13.md) |
 
 ## Important decisions already established
 
