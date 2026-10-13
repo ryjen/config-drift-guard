@@ -23,8 +23,8 @@ import {
   type WorkflowStepKey,
 } from "@config-drift-guard/contracts";
 import { and, asc, eq, gt, inArray } from "drizzle-orm";
-import type { AppDatabase } from "./database.js";
 import type { RunEventBusPort, RunEventListener } from "../application/ports.js";
+import type { AppDatabase } from "./database.js";
 import {
   decisions,
   environments,
@@ -584,6 +584,4 @@ export class PersistenceRepository {
     this.eventBus.publish(event);
     return event;
   }
-
-
 }
