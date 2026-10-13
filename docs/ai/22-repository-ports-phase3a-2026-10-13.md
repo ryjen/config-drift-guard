@@ -20,3 +20,7 @@ Local workspace typecheck and production build passed, and all 73 existing tests
 ## Follow-up
 
 Phase 3b should extract concrete environment and durable event storage into separate SQLite-backed classes, preserving the single database transaction domain for run transitions. Avoid dividing multi-table approval/rejection transactions across independent commit boundaries.
+
+## Integration verification
+
+[PR #27](https://github.com/ryjen/config-drift-guard/pull/27) merged as `55cec020af1d5d1c299139965e51df9a386350c7`. Exact-head [CI #111](https://github.com/ryjen/config-drift-guard/actions/runs/38368802599) passed canonical `pnpm check`, including 74 tests. The merge retained existing storage behavior, numeric event cursors, and infrastructure-only environment seeding. This is final verification, not a retroactive claim that the earlier pending CI had already passed.

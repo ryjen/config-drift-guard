@@ -34,23 +34,27 @@ apps/web/                    # Next.js 15, single-page operator console ("use cl
 
 **State machine** (`apps/api/src/state-machine.ts`): Pure functions, no class. Operates on `RunStateStore` interface. Every transition is guarded.
 
-**Workflow executor** (`apps/api/src/workflow-executor.ts`): One class, two methods: `execute()` (6 scan steps) and `executeReconciliation()` (3 post-approval steps). Runs in-process via `setTimeout(0)`.
+**Workflow executor** (`apps/api/src/workflow-executor.ts`): One class, two methods: `execute()` (6 scan steps) and `executeReconciliation()` (3 post-approval steps). Has an optional `WorkflowPacer` injection; demo-specific delays are not built into the executor.
 
 **Adapters** (`apps/api/src/adapters/`): `ServiceConfigAdapter` and `DocumentationAdapter`. Each implements `loadCanonical`, `loadObserved`, `validateCanonical`, `normalizeCanonical`, `normalizeObserved`, `applyTarget`, `resetObserved`.
 
 **Drift engine** (`packages/drift-engine/src/index.ts`): Pure functions only. Compares `NormalizedResourceState` objects. `SERVICE_CONFIG_MANAGED_FIELDS = ["image", "replicas", "environment"]`. Digests are SHA-256 of canonical JSON over managed fields only.
 
-**Persistence** (`apps/api/src/persistence/`): SQLite via better-sqlite3 + Drizzle. 7 tables. Schema is raw SQL in `migrations.ts`, Drizzle schema in `schema.ts`. Tests use `:memory:` database. Seeded environments are inserted with `onConflictDoNothing`.
+**Application boundary** (`apps/api/src/`): `run-orchestrator.ts` owns run decisions; `container.ts` composes adapters, scheduling and shutdown; `app.ts` (~48 lines) configures Fastify and registers thin handlers in `routes/`. The optional demo pacer is composed only by `demo/runtime.ts` with `DEMO_MODE=1`.
+
+**Repository ports** (`packages/contracts/src/ports.ts`, `apps/api/src/application/ports.ts`): `EnvironmentRepository`, `RunRepository`, `EventRepository` and `PersistencePorts` keep domain types infrastructure-independent. `WorkflowRepository` and `RunOrchestratorRepository` consume narrower subsets. The SSE route reads durable events via an event-read port and subscribes to live notifications through `RunEventBusPort`.
+
+**Persistence** (`apps/api/src/persistence/`): SQLite via better-sqlite3 + Drizzle; 7 tables. `SqliteEnvironmentRepository`, `SqliteRunRepository` and `SqliteEventRepository` share one database handle; `PersistenceRepository` remains a compatibility alias. Multi-table run/decision transactions remain in the run repository; event replay remains durable, while `RunEventBus` handles in-memory delivery. Environment fixtures use `onConflictDoNothing`.
 
 **REST snapshots are authoritative.** SSE is notification-only — the client refetches `GET /api/runs/:runId` on each event.
 
 ## Testing
 
 - Tests use in-memory SQLite (`:memory:`) — no external services required.
-- 8 test files, 43 tests across the workspace (including HTTP SSE transport and web subscription tests).
+- 18 test files, 75 tests across the workspace at the Phase 3 completion checkpoint (57 API, 5 contracts, 10 drift-engine, 3 web).
 - `apps/web` includes unit tests for SSE subscription state transitions.
 - API integration tests (`apps/api/src/app.test.ts`) exercise the full happy path including async approval + reconciliation via polling.
-- No snapshot tests, no MSW, no test containers.
+- No snapshot tests, no MSW, no test containers. The opt-in `ci:e2e` label enables real Chromium Playwright coverage for trusted same-repository PRs, with bounded steps and no self-hosted runner.
 
 ## Key Constraints
 
@@ -59,7 +63,7 @@ apps/web/                    # Next.js 15, single-page operator console ("use cl
 - ESM throughout (`"type": "module"`). Imports use `.js` extension suffix.
 - API binds to `127.0.0.1` by default. CORS allows local origins only.
 - Browser input never specifies filesystem paths or submits arbitrary remediation operations.
-- The `DriftAdapter` interface (`workflow-executor.ts:32-46`) uses `ReturnType<ServiceConfigAdapter[...]>` instead of `NormalizedResourceState` directly — this is a known coupling, not a bug.
+- The `DriftAdapter` port is in `apps/api/src/application/ports.ts` and uses `NormalizedResourceState` from the inward drift-engine package; `packages/contracts` must never import drift-engine or SQLite.
 - Finding kind naming: engine uses `"added"|"removed"|"changed"`, contracts use `"missing"|"extra"|"changed"`. The mapping is in `toContractFindingKind()` in `workflow-executor.ts`.
 
 ## Documentation
