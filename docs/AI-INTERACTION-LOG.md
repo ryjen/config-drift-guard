@@ -48,6 +48,7 @@ Session records and historical transcripts are in [`docs/ai/`](ai/). Transcript 
 | 17 — Demo runtime isolation (summary) | [`17-demo-runtime-2026-10-13.md`](ai/17-demo-runtime-2026-10-13.md) |
 | 18 — Event bus extraction (summary) | [`18-event-bus-2026-10-13.md`](ai/18-event-bus-2026-10-13.md) |
 | 19 — RunOrchestrator use-case extraction (summary) | [`19-run-orchestrator-2026-10-13.md`](ai/19-run-orchestrator-2026-10-13.md) |
+| 20 — Fastify route registrar extraction (summary) | [`20-fastify-routes-2026-10-13.md`](ai/20-fastify-routes-2026-10-13.md) |
 
 ## Important decisions already established
 

@@ -6,7 +6,7 @@ import type { Event } from "@config-drift-guard/contracts";
 import { describe, expect, it, vi } from "vitest";
 import { buildApp } from "./app.js";
 import { createDatabase } from "./persistence/database.js";
-import { PersistenceRepository } from "./persistence/repository.js";
+import { RunEventBus } from "./persistence/event-bus.js";
 
 describe("SSE transport lifecycle", () => {
   it("replays persisted events, delivers live changes, and releases the subscription and heartbeat on client disconnect", async () => {
@@ -16,22 +16,20 @@ describe("SSE transport lifecycle", () => {
 
     let subscribers = 0;
     let unsubscribes = 0;
-    const originalSubscribe = PersistenceRepository.prototype.subscribeRunEvents;
-    const subscribeSpy = vi
-      .spyOn(PersistenceRepository.prototype, "subscribeRunEvents")
-      .mockImplementation(function (
-        this: PersistenceRepository,
-        runId: string,
-        listener: (event: Event) => void,
-      ) {
-        const stop = originalSubscribe.call(this, runId, listener);
-        subscribers += 1;
-        return () => {
-          unsubscribes += 1;
-          subscribers -= 1;
-          stop();
-        };
-      });
+    const originalSubscribe = RunEventBus.prototype.subscribe;
+    const subscribeSpy = vi.spyOn(RunEventBus.prototype, "subscribe").mockImplementation(function (
+      this: RunEventBus,
+      runId: string,
+      listener: (event: Event) => void,
+    ) {
+      const stop = originalSubscribe.call(this, runId, listener);
+      subscribers += 1;
+      return () => {
+        unsubscribes += 1;
+        subscribers -= 1;
+        stop();
+      };
+    });
     const intervalSpy = vi.spyOn(globalThis, "setInterval");
     const clearIntervalSpy = vi.spyOn(globalThis, "clearInterval");
 
