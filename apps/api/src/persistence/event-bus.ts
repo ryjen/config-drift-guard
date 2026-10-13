@@ -1,9 +1,8 @@
 import type { Event } from "@config-drift-guard/contracts";
-
-export type RunEventListener = (event: Event) => void;
+import type { RunEventBusPort, RunEventListener } from "../application/ports.js";
 
 /** In-memory fan-out only. Durable events and replay remain in persistence. */
-export class RunEventBus {
+export class RunEventBus implements RunEventBusPort {
   private readonly listeners = new Map<string, Set<RunEventListener>>();
 
   subscribe(runId: string, listener: RunEventListener): () => void {
