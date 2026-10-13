@@ -62,16 +62,42 @@ export const test = base.extend<{ apiServer: undefined }>({
         await use(undefined);
       } finally {
         if (child.exitCode === null && child.signalCode === null) {
-          await new Promise<void>((resolveExit) => {
-            const timeout = setTimeout(() => {
-              child.kill("SIGKILL");
-              resolveExit();
+          await new Promise<void>((resolveExit, rejectExit) => {
+            // Do not release the shared API port until this child has exited.
+            // Sending SIGKILL is not proof that the process has terminated.
+            const escalation = setTimeout(() => {
+              if (child.exitCode === null && child.signalCode === null) {
+                child.kill("SIGKILL");
+              }
             }, 3_000);
-            child.once("exit", () => {
-              clearTimeout(timeout);
+            const deadline = setTimeout(() => {
+              cleanup();
+              rejectExit(new Error("E2E API did not exit after SIGKILL; port isolation unverified"));
+            }, 7_000);
+
+            function cleanup(): void {
+              clearTimeout(escalation);
+              clearTimeout(deadline);
+              child.removeListener("exit", onExit);
+              child.removeListener("error", onError);
+            }
+
+            function onExit(): void {
+              cleanup();
               resolveExit();
-            });
-            child.kill("SIGTERM");
+            }
+
+            function onError(error: Error): void {
+              cleanup();
+              rejectExit(error);
+            }
+
+            child.once("exit", onExit);
+            child.once("error", onError);
+            if (!child.kill("SIGTERM")) {
+              cleanup();
+              rejectExit(new Error("Unable to signal E2E API for teardown"));
+            }
           });
         }
       }
