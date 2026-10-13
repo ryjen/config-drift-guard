@@ -13,6 +13,7 @@ import { z } from "zod";
 import { DocumentationAdapter } from "./adapters/documentation.js";
 import { ServiceConfigAdapter } from "./adapters/service-config.js";
 import { apiError } from "./api-error.js";
+import type { DriftAdapter } from "./application/ports.js";
 import { isActiveRunConstraintError } from "./persistence/constraint-errors.js";
 import { createDatabase, type DatabaseHandle } from "./persistence/database.js";
 import { PersistenceRepository } from "./persistence/repository.js";
@@ -54,7 +55,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const adapters = {
     documentation: documentationAdapter,
     service_config: serviceConfigAdapter,
-  } satisfies Record<AdapterKind, ServiceConfigAdapter | DocumentationAdapter>;
+  } satisfies Record<AdapterKind, DriftAdapter>;
   const pendingWorkflowTimers = new Set<ReturnType<typeof setTimeout>>();
   const activeWorkflows = new Set<Promise<unknown>>();
   let isClosing = false;
