@@ -8,9 +8,9 @@ afterEach(() => {
 describe("explicit demo runtime", () => {
   it("does not configure pacing or deferred scheduling without DEMO_MODE=1", () => {
     expect(demoRuntimeFromEnvironment({})).toEqual({});
-    expect(
-      demoRuntimeFromEnvironment({ QUEUE_DELAY_MS: "999", PHASE_DELAY_MS: "999" }),
-    ).toEqual({});
+    expect(demoRuntimeFromEnvironment({ QUEUE_DELAY_MS: "999", PHASE_DELAY_MS: "999" })).toEqual(
+      {},
+    );
   });
 
   it("delays only explicitly enabled demo tasks and phases", async () => {
@@ -41,11 +41,11 @@ describe("explicit demo runtime", () => {
   });
 
   it("rejects invalid or excessive delays only when demo is enabled", () => {
-    expect(() =>
-      demoRuntimeFromEnvironment({ DEMO_MODE: "1", QUEUE_DELAY_MS: "-1" }),
-    ).toThrow("QUEUE_DELAY_MS");
-    expect(() =>
-      demoRuntimeFromEnvironment({ DEMO_MODE: "1", PHASE_DELAY_MS: "60001" }),
-    ).toThrow("PHASE_DELAY_MS");
+    expect(() => demoRuntimeFromEnvironment({ DEMO_MODE: "1", QUEUE_DELAY_MS: "-1" })).toThrow(
+      "QUEUE_DELAY_MS",
+    );
+    expect(() => demoRuntimeFromEnvironment({ DEMO_MODE: "1", PHASE_DELAY_MS: "60001" })).toThrow(
+      "PHASE_DELAY_MS",
+    );
   });
 });
