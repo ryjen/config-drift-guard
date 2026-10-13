@@ -1,7 +1,10 @@
 import type {
+  Decision,
+  Environment,
   Event,
   Finding,
   JsonValue,
+  Run,
   RunSnapshot,
   RunStateStore,
 } from "@config-drift-guard/contracts";
@@ -47,4 +50,18 @@ export type RunEventListener = (event: Event) => void;
 export interface RunEventBusPort {
   subscribe(runId: string, listener: RunEventListener): () => void;
   publish(event: Event): void;
+}
+
+/** Use-case view of durable state; infrastructure implements this port. */
+export interface RunOrchestratorRepository extends WorkflowRepository {
+  listEnvironments(): Environment[];
+  getEnvironment(environmentId: string): Environment | null;
+  hasActiveRun(environmentId: string): boolean;
+  createQueuedRun(environmentId: string): Run;
+  recordDecisionAndApprove(input: Omit<Decision, "id" | "createdAt">): { decision: Decision; run: Run };
+  recordDecisionAndReject(input: Omit<Decision, "id" | "createdAt">): { decision: Decision; run: Run };
+}
+
+export interface ResettableDriftAdapter extends DriftAdapter {
+  resetObserved(): void;
 }
