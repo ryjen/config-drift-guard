@@ -1,4 +1,10 @@
-import { StaleRemediationPlanError, type ErrorEnvelope, type Finding, type JsonValue, type RunSnapshot } from "@config-drift-guard/contracts";
+import {
+  type ErrorEnvelope,
+  type Finding,
+  type JsonValue,
+  type RunSnapshot,
+  StaleRemediationPlanError,
+} from "@config-drift-guard/contracts";
 import {
   buildCompleteTargetState,
   compareNormalizedResourceStates,
