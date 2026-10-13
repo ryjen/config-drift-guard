@@ -14,7 +14,7 @@ import {
   type NormalizedResourceState,
 } from "@config-drift-guard/drift-engine";
 import { ZodError } from "zod";
-import type { DriftAdapter, WorkflowRepository } from "./application/ports.js";
+import type { DriftAdapter, WorkflowPacer, WorkflowRepository } from "./application/ports.js";
 import {
   completeStep,
   failRun,
@@ -33,15 +33,11 @@ export class StaleCanonicalStateError extends Error {
   }
 }
 
-function delay(ms: number): Promise<void> {
-  return ms > 0 ? new Promise((resolve) => setTimeout(resolve, ms)) : Promise.resolve();
-}
-
 export class WorkflowExecutor {
   constructor(
     private readonly repository: WorkflowRepository,
     private readonly adapter: DriftAdapter,
-    private readonly phaseDelay = 0,
+    private readonly pacer?: WorkflowPacer,
   ) {}
 
   async execute(runId: string): Promise<RunSnapshot> {
@@ -49,7 +45,7 @@ export class WorkflowExecutor {
 
     try {
       startRun(this.repository, runId);
-      await delay(this.phaseDelay);
+      await this.pacer?.afterPhase();
 
       activeStep = "validate_canonical_state";
       startStep(this.repository, runId, activeStep);
@@ -62,7 +58,7 @@ export class WorkflowExecutor {
         { resourceCount: 1 },
         "Canonical state is valid",
       );
-      await delay(this.phaseDelay);
+      await this.pacer?.afterPhase();
 
       activeStep = "load_observed_state";
       startStep(this.repository, runId, activeStep);
@@ -74,7 +70,7 @@ export class WorkflowExecutor {
         { source: "seeded-local-runtime" },
         "Observed state loaded",
       );
-      await delay(this.phaseDelay);
+      await this.pacer?.afterPhase();
 
       activeStep = "normalize_state";
       startStep(this.repository, runId, activeStep);
@@ -89,7 +85,7 @@ export class WorkflowExecutor {
         { canonicalDigest, observedDigest, managedFields: canonical.managedFields },
         "Canonical and observed state normalized",
       );
-      await delay(this.phaseDelay);
+      await this.pacer?.afterPhase();
 
       activeStep = "calculate_drift";
       startStep(this.repository, runId, activeStep);
@@ -101,7 +97,7 @@ export class WorkflowExecutor {
         { findingCount: comparison.findings.length, engineVersion: comparison.engineVersion },
         "Drift calculated deterministically",
       );
-      await delay(this.phaseDelay);
+      await this.pacer?.afterPhase();
 
       activeStep = "classify_findings";
       startStep(this.repository, runId, activeStep);
@@ -114,7 +110,7 @@ export class WorkflowExecutor {
         severitySummary(comparison.findings),
         "Findings classified",
       );
-      await delay(this.phaseDelay);
+      await this.pacer?.afterPhase();
 
       activeStep = "build_remediation_plan";
       startStep(this.repository, runId, activeStep);
@@ -194,7 +190,7 @@ export class WorkflowExecutor {
         },
         "Canonical and observed digests match immutable plan",
       );
-      await delay(this.phaseDelay);
+      await this.pacer?.afterPhase();
 
       activeStep = "apply_reconciliation";
       startStep(this.repository, runId, activeStep);
@@ -209,7 +205,7 @@ export class WorkflowExecutor {
         { ...applyResult },
         "Target state applied with temporary-file atomic rename",
       );
-      await delay(this.phaseDelay);
+      await this.pacer?.afterPhase();
 
       activeStep = "verify_convergence";
       startStep(this.repository, runId, activeStep);
@@ -233,7 +229,7 @@ export class WorkflowExecutor {
         },
         "Post-write verification scan converged",
       );
-      await delay(this.phaseDelay);
+      await this.pacer?.afterPhase();
 
       finishReconciledRun(this.repository, runId, verification.observedDigest);
       return this.repository.getRunSnapshot(runId);
