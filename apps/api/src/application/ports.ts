@@ -1,27 +1,17 @@
 import type {
-  Decision,
-  Environment,
+  EnvironmentRepository,
   Event,
-  Finding,
+  EventRepository,
   JsonValue,
-  Run,
-  RunSnapshot,
+  RunRepository,
   RunStateStore,
 } from "@config-drift-guard/contracts";
 import type { NormalizedResourceState } from "@config-drift-guard/drift-engine";
 
-export interface WorkflowRepository extends RunStateStore {
-  replaceFindings(runId: string, records: readonly Omit<Finding, "id" | "runId">[]): Finding[];
-  saveRemediationPlan(input: {
-    readonly runId: string;
-    readonly canonicalDigest: string;
-    readonly expectedObservedDigest: string;
-    readonly targetDigest: string;
-    readonly target: JsonValue;
-    readonly engineVersion: string;
-  }): unknown;
-  getRunSnapshot(runId: string): RunSnapshot;
-}
+/** Executor needs run transitions, findings, plan persistence and snapshots only. */
+export interface WorkflowRepository
+  extends RunStateStore,
+    Pick<RunRepository, "replaceFindings" | "saveRemediationPlan" | "getRunSnapshot"> {}
 
 export interface ApplyResult {
   readonly observedDigestBefore: string;
@@ -52,21 +42,20 @@ export interface RunEventBusPort {
   publish(event: Event): void;
 }
 
-/** Use-case view of durable state; infrastructure implements this port. */
-export interface RunOrchestratorRepository extends WorkflowRepository {
-  listEnvironments(): Environment[];
-  getEnvironment(environmentId: string): Environment | null;
-  hasActiveRun(environmentId: string): boolean;
-  createQueuedRun(environmentId: string): Run;
-  recordDecisionAndApprove(input: Omit<Decision, "id" | "createdAt">): {
-    decision: Decision;
-    run: Run;
-  };
-  recordDecisionAndReject(input: Omit<Decision, "id" | "createdAt">): {
-    decision: Decision;
-    run: Run;
-  };
-}
+/** Use case only reads environments and controls run/decision lifecycle. */
+export interface RunOrchestratorRepository
+  extends EnvironmentRepository,
+    Pick<
+      RunRepository,
+      | "hasActiveRun"
+      | "createQueuedRun"
+      | "getRunSnapshot"
+      | "recordDecisionAndApprove"
+      | "recordDecisionAndReject"
+    > {}
+
+/** Routes require a run existence guard and durable replay, not mutable run state. */
+export interface EventReadRepository extends EventRepository, Pick<RunStateStore, "getRun"> {}
 
 export interface ResettableDriftAdapter extends DriftAdapter {
   resetObserved(): void;

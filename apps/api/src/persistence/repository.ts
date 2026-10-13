@@ -10,6 +10,7 @@ import {
   type Finding,
   findingSchema,
   type JsonValue,
+  type PersistencePorts,
   type RemediationPlan,
   type Run,
   type RunSnapshot,
@@ -90,7 +91,7 @@ function parseEvent(row: typeof events.$inferSelect): Event {
   return eventSchema.parse(row);
 }
 
-export class PersistenceRepository {
+export class PersistenceRepository implements PersistencePorts {
   constructor(
     private readonly db: AppDatabase,
     private readonly eventBus: RunEventBusPort,
