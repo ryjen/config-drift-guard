@@ -7,7 +7,10 @@ import { runOperationErrorResponse } from "./errors.js";
 
 const emptyRequestSchema = z.object({}).strict();
 
-export function registerEnvironmentRoutes(app: FastifyInstance, orchestrator: RunOrchestrator): void {
+export function registerEnvironmentRoutes(
+  app: FastifyInstance,
+  orchestrator: RunOrchestrator,
+): void {
   app.get<{ Reply: Environment[] }>("/api/environments", async () =>
     orchestrator.listEnvironments(),
   );
@@ -29,5 +32,4 @@ export function registerEnvironmentRoutes(app: FastifyInstance, orchestrator: Ru
       return runOperationErrorResponse(error, reply, request.id);
     }
   });
-
 }
