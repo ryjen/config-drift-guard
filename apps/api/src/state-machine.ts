@@ -6,7 +6,6 @@ import type {
   WorkflowStepKey,
 } from "@config-drift-guard/contracts";
 
-
 export function startRun(store: RunStateStore, runId: string): Run {
   const run = store.getRun(runId);
   if (run.status !== "queued") {
