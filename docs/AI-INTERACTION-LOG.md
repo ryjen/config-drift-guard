@@ -51,6 +51,7 @@ Session records and historical transcripts are in [`docs/ai/`](ai/). Transcript 
 | 20 — Fastify route registrar extraction (summary) | [`20-fastify-routes-2026-10-13.md`](ai/20-fastify-routes-2026-10-13.md) |
 | 21 — Explicit application container (summary) | [`21-container-2026-10-13.md`](ai/21-container-2026-10-13.md) |
 | 22 — Repository port segregation (summary) | [`22-repository-ports-phase3a-2026-10-13.md`](ai/22-repository-ports-phase3a-2026-10-13.md) |
+| 23 — SQLite repository extraction (summary) | [`23-sqlite-repositories-phase3b-2026-10-13.md`](ai/23-sqlite-repositories-phase3b-2026-10-13.md) |
 
 ## Important decisions already established
 

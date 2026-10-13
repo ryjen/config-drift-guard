@@ -3,8 +3,10 @@ import { DocumentationAdapter } from "./adapters/documentation.js";
 import { ServiceConfigAdapter } from "./adapters/service-config.js";
 import type { ResettableDriftAdapter, WorkflowPacer } from "./application/ports.js";
 import { createDatabase, type DatabaseHandle } from "./persistence/database.js";
+import { SqliteEnvironmentRepository } from "./persistence/environments.js";
 import { RunEventBus } from "./persistence/event-bus.js";
-import { PersistenceRepository } from "./persistence/repository.js";
+import { SqliteEventRepository } from "./persistence/events.js";
+import { SqliteRunRepository } from "./persistence/repository.js";
 import { RunOrchestrator } from "./run-orchestrator.js";
 import { WorkflowExecutor } from "./workflow-executor.js";
 
@@ -19,7 +21,7 @@ export interface BuildAppOptions {
 /** Infrastructure composition is centralized and explicitly owned by the application. */
 export interface AppContainer {
   readonly database: DatabaseHandle;
-  readonly repository: PersistenceRepository;
+  readonly repository: SqliteRunRepository;
   readonly eventBus: RunEventBus;
   readonly adapters: Record<AdapterKind, ResettableDriftAdapter>;
   readonly orchestrator: RunOrchestrator;
@@ -29,7 +31,9 @@ export interface AppContainer {
 export function createAppContainer(options: BuildAppOptions = {}): AppContainer {
   const database = options.database ?? createDatabase();
   const eventBus = new RunEventBus();
-  const repository = new PersistenceRepository(database.db, eventBus);
+  const environmentStore = new SqliteEnvironmentRepository(database.db);
+  const eventStore = new SqliteEventRepository(database.db, eventBus);
+  const repository = new SqliteRunRepository(database.db, eventBus, environmentStore, eventStore);
   const adapters = {
     documentation: new DocumentationAdapter(options.documentationObservedPath),
     service_config: new ServiceConfigAdapter(options.serviceConfigObservedPath),

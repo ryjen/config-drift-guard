@@ -5,8 +5,6 @@ import {
   type Environment,
   type ErrorEnvelope,
   type Event,
-  environmentSchema,
-  eventSchema,
   type Finding,
   findingSchema,
   type JsonValue,
@@ -23,18 +21,12 @@ import {
   stepSchema,
   type WorkflowStepKey,
 } from "@config-drift-guard/contracts";
-import { and, asc, eq, gt, inArray } from "drizzle-orm";
-import type { RunEventBusPort, RunEventListener } from "../application/ports.js";
+import { and, asc, eq, inArray } from "drizzle-orm";
+import type { RunEventBusPort } from "../application/ports.js";
 import type { AppDatabase } from "./database.js";
-import {
-  decisions,
-  environments,
-  events,
-  findings,
-  remediationPlans,
-  runs,
-  steps,
-} from "./schema.js";
+import { SqliteEnvironmentRepository } from "./environments.js";
+import { parseEvent, SqliteEventRepository } from "./events.js";
+import { decisions, events, findings, remediationPlans, runs, steps } from "./schema.js";
 
 export const primaryWorkflowSteps: readonly WorkflowStepKey[] = [
   "validate_canonical_state",
@@ -56,15 +48,8 @@ export const workflowSteps: readonly WorkflowStepKey[] = [
   ...reconciliationWorkflowSteps,
 ];
 
-export const serviceConfigEnvironmentId = "env_service_config";
-export const documentationEnvironmentId = "env_documentation";
-
 function nowIso(): string {
   return new Date().toISOString();
-}
-
-function parseEnvironment(row: typeof environments.$inferSelect): Environment {
-  return environmentSchema.parse(row);
 }
 
 function parseRun(row: typeof runs.$inferSelect): Run {
@@ -87,73 +72,28 @@ function parseDecision(row: typeof decisions.$inferSelect | undefined): Decision
   return row === undefined ? null : decisionSchema.parse(row);
 }
 
-function parseEvent(row: typeof events.$inferSelect): Event {
-  return eventSchema.parse(row);
-}
-
-export class PersistenceRepository implements PersistencePorts {
+export class SqliteRunRepository implements PersistencePorts {
   constructor(
     private readonly db: AppDatabase,
-    private readonly eventBus: RunEventBusPort,
+    eventBus: RunEventBusPort,
+    private readonly environmentStore = new SqliteEnvironmentRepository(db),
+    private readonly eventStore = new SqliteEventRepository(db, eventBus),
   ) {}
 
   seedServiceConfigEnvironment(): Environment {
-    const timestamp = nowIso();
-    const environment = {
-      id: serviceConfigEnvironmentId,
-      name: "Service configuration drift",
-      adapterKind: "service_config" as const,
-      sourceConfig: {
-        scenario: "service-config",
-        canonicalFixture: "service-config.desired.yaml",
-        observedFixture: "service-config.observed.json",
-      },
-      createdAt: timestamp,
-      updatedAt: timestamp,
-    };
-
-    this.db.insert(environments).values(environment).onConflictDoNothing().run();
-
-    const seeded = this.getEnvironment(environment.id);
-    if (seeded === null) {
-      throw new Error("service_config_environment_seed_failed");
-    }
-
-    return seeded;
+    return this.environmentStore.seedServiceConfigEnvironment();
   }
 
   seedDocumentationEnvironment(): Environment {
-    const timestamp = nowIso();
-    const environment = {
-      id: documentationEnvironmentId,
-      name: "Structured documentation drift",
-      adapterKind: "documentation" as const,
-      sourceConfig: {
-        scenario: "documentation",
-        canonicalFixture: "configuration-schema.yaml",
-        observedFixture: "config-reference.md",
-      },
-      createdAt: timestamp,
-      updatedAt: timestamp,
-    };
-
-    this.db.insert(environments).values(environment).onConflictDoNothing().run();
-
-    const seeded = this.getEnvironment(environment.id);
-    if (seeded === null) {
-      throw new Error("documentation_environment_seed_failed");
-    }
-
-    return seeded;
+    return this.environmentStore.seedDocumentationEnvironment();
   }
 
   listEnvironments(): Environment[] {
-    return this.db
-      .select()
-      .from(environments)
-      .orderBy(asc(environments.name))
-      .all()
-      .map(parseEnvironment);
+    return this.environmentStore.listEnvironments();
+  }
+
+  getEnvironment(environmentId: string): Environment | null {
+    return this.environmentStore.getEnvironment(environmentId);
   }
 
   recoverInterruptedRuns(): Run[] {
@@ -185,16 +125,6 @@ export class PersistenceRepository implements PersistencePorts {
     }
 
     return interruptedRuns.map((run) => this.getRun(run.id));
-  }
-
-  getEnvironment(environmentId: string): Environment | null {
-    const [row] = this.db
-      .select()
-      .from(environments)
-      .where(eq(environments.id, environmentId))
-      .limit(1)
-      .all();
-    return row === undefined ? null : parseEnvironment(row);
   }
 
   hasActiveRun(environmentId: string): boolean {
@@ -374,18 +304,11 @@ export class PersistenceRepository implements PersistencePorts {
   }
 
   listRunEventsAfter(runId: string, afterEventId: number): Event[] {
-    this.getRun(runId);
-    return this.db
-      .select()
-      .from(events)
-      .where(and(eq(events.runId, runId), gt(events.id, afterEventId)))
-      .orderBy(asc(events.id))
-      .all()
-      .map(parseEvent);
+    return this.eventStore.listRunEventsAfter(runId, afterEventId);
   }
 
-  subscribeRunEvents(runId: string, listener: RunEventListener): () => void {
-    return this.eventBus.subscribe(runId, listener);
+  appendEvent(runId: string, eventType: string, payload: JsonValue): Event {
+    return this.eventStore.appendEvent(runId, eventType, payload);
   }
 
   replaceFindings(runId: string, records: readonly Omit<Finding, "id" | "runId">[]): Finding[] {
@@ -568,21 +491,7 @@ export class PersistenceRepository implements PersistencePorts {
 
     return { decision, run: this.getRun(input.runId) };
   }
-
-  appendEvent(runId: string, eventType: string, payload: JsonValue): Event {
-    this.db.insert(events).values({ runId, eventType, payload, createdAt: nowIso() }).run();
-    const [row] = this.db
-      .select()
-      .from(events)
-      .where(eq(events.runId, runId))
-      .orderBy(asc(events.id))
-      .all()
-      .slice(-1);
-    if (row === undefined) {
-      throw new Error("event_not_saved");
-    }
-    const event = parseEvent(row);
-    this.eventBus.publish(event);
-    return event;
-  }
 }
+
+/** Legacy import alias for code that still names the aggregate repository. */
+export { SqliteRunRepository as PersistenceRepository };
