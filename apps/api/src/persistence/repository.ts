@@ -24,7 +24,7 @@ import {
 } from "@config-drift-guard/contracts";
 import { and, asc, eq, gt, inArray } from "drizzle-orm";
 import type { AppDatabase } from "./database.js";
-import type { RunEventBus, RunEventListener } from "./event-bus.js";
+import type { RunEventBusPort, RunEventListener } from "../application/ports.js";
 import {
   decisions,
   environments,
@@ -93,7 +93,7 @@ function parseEvent(row: typeof events.$inferSelect): Event {
 export class PersistenceRepository {
   constructor(
     private readonly db: AppDatabase,
-    private readonly eventBus: RunEventBus,
+    private readonly eventBus: RunEventBusPort,
   ) {}
 
   seedServiceConfigEnvironment(): Environment {
