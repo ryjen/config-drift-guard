@@ -9,6 +9,7 @@ import {
   SERVICE_CONFIG_MANAGED_FIELDS,
 } from "@config-drift-guard/drift-engine";
 import { z } from "zod";
+import type { ApplyResult, DriftAdapter } from "../application/ports.js";
 import { writeJsonAtomically } from "./atomic-file.js";
 
 const desiredServiceSchema = z.object({
@@ -42,11 +43,7 @@ const targetSchema = z.object({
   environment: z.record(z.string(), z.string()),
 });
 
-export interface ApplyResult {
-  readonly observedDigestBefore: string;
-  readonly observedDigestAfter: string;
-  readonly targetDigest: string;
-}
+
 
 export interface LoadedServiceConfigState {
   readonly canonicalRaw: JsonValue;
@@ -82,7 +79,7 @@ const seededObserved = {
   },
 } satisfies JsonValue;
 
-export class ServiceConfigAdapter {
+export class ServiceConfigAdapter implements DriftAdapter {
   readonly kind = "service_config" as const;
 
   constructor(

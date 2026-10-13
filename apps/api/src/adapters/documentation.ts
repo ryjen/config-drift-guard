@@ -9,7 +9,7 @@ import {
 } from "@config-drift-guard/drift-engine";
 import { z } from "zod";
 import { writeTextAtomically } from "./atomic-file.js";
-import type { ApplyResult } from "./service-config.js";
+import type { ApplyResult, DriftAdapter } from "../application/ports.js";
 
 const schemaPropertySchema = z.object({
   type: z.enum(["string", "integer", "number", "boolean"]),
@@ -45,7 +45,7 @@ const seededObservedMarkdown = `# Runtime Configuration Reference
 <!-- config-drift-guard:end -->
 `;
 
-export class DocumentationAdapter {
+export class DocumentationAdapter implements DriftAdapter {
   readonly kind = "documentation" as const;
 
   constructor(

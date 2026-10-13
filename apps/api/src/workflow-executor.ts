@@ -9,44 +9,22 @@ import {
   buildCompleteTargetState,
   compareNormalizedResourceStates,
   type DriftFinding,
+  type NormalizedResourceState,
   digestJson,
   digestNormalizedResourceState,
-  type NormalizedResourceState,
 } from "@config-drift-guard/drift-engine";
 import { ZodError } from "zod";
-import { type ApplyResult, ServiceConfigAdapter } from "./adapters/service-config.js";
+import type { DriftAdapter, WorkflowRepository } from "./application/ports.js";
 import {
   completeStep,
   failRun,
   finishReconciledRun,
   finishRun,
-  type RunStateStore,
   startRun,
   startStep,
 } from "./state-machine.js";
 
-interface WorkflowRepository extends RunStateStore {
-  replaceFindings(runId: string, records: readonly Omit<Finding, "id" | "runId">[]): Finding[];
-  saveRemediationPlan(input: {
-    readonly runId: string;
-    readonly canonicalDigest: string;
-    readonly expectedObservedDigest: string;
-    readonly targetDigest: string;
-    readonly target: JsonValue;
-    readonly engineVersion: string;
-  }): unknown;
-  getRunSnapshot(runId: string): RunSnapshot;
-}
 
-export interface DriftAdapter {
-  readonly kind: string;
-  loadCanonical(): JsonValue;
-  loadObserved(): JsonValue;
-  validateCanonical(input: JsonValue): void;
-  normalizeCanonical(input: JsonValue): NormalizedResourceState;
-  normalizeObserved(input: JsonValue, resourceId: string): NormalizedResourceState;
-  applyTarget(expectedObservedDigest: string, target: JsonValue): ApplyResult;
-}
 
 export class StaleCanonicalStateError extends Error {
   constructor(
@@ -64,7 +42,7 @@ function delay(ms: number): Promise<void> {
 export class WorkflowExecutor {
   constructor(
     private readonly repository: WorkflowRepository,
-    private readonly adapter: DriftAdapter = new ServiceConfigAdapter(),
+    private readonly adapter: DriftAdapter,
     private readonly phaseDelay = 0,
   ) {}
 
