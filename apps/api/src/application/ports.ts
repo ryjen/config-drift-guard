@@ -1,11 +1,5 @@
-import type {
-  Finding,
-  JsonValue,
-  RunStateStore,
-  RunSnapshot,
-} from "@config-drift-guard/contracts";
+import type { Finding, JsonValue, RunSnapshot, RunStateStore } from "@config-drift-guard/contracts";
 import type { NormalizedResourceState } from "@config-drift-guard/drift-engine";
-
 
 
 export interface WorkflowRepository extends RunStateStore {

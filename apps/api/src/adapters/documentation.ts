@@ -8,8 +8,8 @@ import {
   type NormalizedResourceState,
 } from "@config-drift-guard/drift-engine";
 import { z } from "zod";
-import { writeTextAtomically } from "./atomic-file.js";
 import type { ApplyResult, DriftAdapter } from "../application/ports.js";
+import { writeTextAtomically } from "./atomic-file.js";
 
 const schemaPropertySchema = z.object({
   type: z.enum(["string", "integer", "number", "boolean"]),

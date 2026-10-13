@@ -43,8 +43,6 @@ const targetSchema = z.object({
   environment: z.record(z.string(), z.string()),
 });
 
-
-
 export interface LoadedServiceConfigState {
   readonly canonicalRaw: JsonValue;
   readonly observedRaw: JsonValue;

@@ -9,9 +9,9 @@ import {
   buildCompleteTargetState,
   compareNormalizedResourceStates,
   type DriftFinding,
-  type NormalizedResourceState,
   digestJson,
   digestNormalizedResourceState,
+  type NormalizedResourceState,
 } from "@config-drift-guard/drift-engine";
 import { ZodError } from "zod";
 import type { DriftAdapter, WorkflowRepository } from "./application/ports.js";
@@ -23,7 +23,6 @@ import {
   startRun,
   startStep,
 } from "./state-machine.js";
-
 
 
 export class StaleCanonicalStateError extends Error {
