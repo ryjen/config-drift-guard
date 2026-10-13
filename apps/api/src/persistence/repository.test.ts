@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { startRun, startStep } from "../state-machine.js";
 import { createDatabase } from "./database.js";
+import { RunEventBus } from "./event-bus.js";
 import { PersistenceRepository, workflowSteps } from "./repository.js";
 
 describe("PersistenceRepository", () => {
   it("seeds the service-config environment", () => {
     const handle = createDatabase(":memory:");
-    const repository = new PersistenceRepository(handle.db);
+    const repository = new PersistenceRepository(handle.db, new RunEventBus());
 
     const environment = repository.seedServiceConfigEnvironment();
 
@@ -26,7 +27,7 @@ describe("PersistenceRepository", () => {
 
   it("round-trips run state, findings, immutable plan, decision, and events", () => {
     const handle = createDatabase(":memory:");
-    const repository = new PersistenceRepository(handle.db);
+    const repository = new PersistenceRepository(handle.db, new RunEventBus());
     const environment = repository.seedServiceConfigEnvironment();
 
     const run = repository.createQueuedRun(environment.id);
@@ -98,7 +99,7 @@ describe("PersistenceRepository", () => {
 
   it("replays events after a cursor and cleans up run event listeners", () => {
     const handle = createDatabase(":memory:");
-    const repository = new PersistenceRepository(handle.db);
+    const repository = new PersistenceRepository(handle.db, new RunEventBus());
     const environment = repository.seedServiceConfigEnvironment();
     const run = repository.createQueuedRun(environment.id);
     const received: string[] = [];
@@ -122,7 +123,7 @@ describe("PersistenceRepository", () => {
 
   it("recovers interrupted queued and running runs on startup", () => {
     const handle = createDatabase(":memory:");
-    const repository = new PersistenceRepository(handle.db);
+    const repository = new PersistenceRepository(handle.db, new RunEventBus());
     const env1 = repository.seedServiceConfigEnvironment();
     const queued = repository.createQueuedRun(env1.id);
     const env2 = repository.seedDocumentationEnvironment();
@@ -150,7 +151,7 @@ describe("PersistenceRepository", () => {
 
   it("validates persisted JSON when reading snapshots", () => {
     const handle = createDatabase(":memory:");
-    const repository = new PersistenceRepository(handle.db);
+    const repository = new PersistenceRepository(handle.db, new RunEventBus());
     const environment = repository.seedServiceConfigEnvironment();
     const run = repository.createQueuedRun(environment.id);
 

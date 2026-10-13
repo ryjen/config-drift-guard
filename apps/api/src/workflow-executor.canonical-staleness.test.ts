@@ -5,6 +5,7 @@ import type { JsonValue } from "@config-drift-guard/contracts";
 import { afterEach, describe, expect, it } from "vitest";
 import { ServiceConfigAdapter } from "./adapters/service-config.js";
 import { createDatabase, type DatabaseHandle } from "./persistence/database.js";
+import { RunEventBus } from "./persistence/event-bus.js";
 import { PersistenceRepository } from "./persistence/repository.js";
 import { approveRun } from "./state-machine.js";
 import { WorkflowExecutor } from "./workflow-executor.js";
@@ -48,7 +49,7 @@ describe("WorkflowExecutor canonical-state preflight", () => {
 
   async function createPlannedRun() {
     handle = createDatabase(":memory:");
-    const repository = new PersistenceRepository(handle.db);
+    const repository = new PersistenceRepository(handle.db, new RunEventBus());
     const environment = repository.seedServiceConfigEnvironment();
     const run = repository.createQueuedRun(environment.id);
     tempDir = mkdtempSync(join(tmpdir(), "config-drift-guard-canonical-staleness-"));

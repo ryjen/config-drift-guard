@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { buildApp } from "./app.js";
 import { createDatabase } from "./persistence/database.js";
+import { RunEventBus } from "./persistence/event-bus.js";
 import { PersistenceRepository } from "./persistence/repository.js";
 import { startRun, startStep } from "./state-machine.js";
 
@@ -201,7 +202,7 @@ describe("API health", () => {
 
   it("rejects reset while an active run exists", async () => {
     const database = createDatabase(":memory:");
-    const repository = new PersistenceRepository(database.db);
+    const repository = new PersistenceRepository(database.db, new RunEventBus());
     repository.seedServiceConfigEnvironment();
     const app = await buildApp({ database, serviceConfigObservedPath: createObservedPath() });
 
@@ -290,7 +291,7 @@ describe("API health", () => {
 
   it("recovers interrupted runs when the API starts", async () => {
     const database = createDatabase(":memory:");
-    const repository = new PersistenceRepository(database.db);
+    const repository = new PersistenceRepository(database.db, new RunEventBus());
     const environment = repository.seedServiceConfigEnvironment();
     const run = repository.createQueuedRun(environment.id);
     startRun(repository, run.id);

@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 import { DocumentationAdapter } from "./adapters/documentation.js";
 import { ServiceConfigAdapter } from "./adapters/service-config.js";
 import { createDatabase } from "./persistence/database.js";
+import { RunEventBus } from "./persistence/event-bus.js";
 import { PersistenceRepository } from "./persistence/repository.js";
 import { approveRun } from "./state-machine.js";
 import { WorkflowExecutor } from "./workflow-executor.js";
@@ -14,7 +15,7 @@ describe("WorkflowExecutor", () => {
   it("uses explicitly injected pacing without coupling the executor to timers", async () => {
     const handle = createDatabase(":memory:");
     try {
-      const repository = new PersistenceRepository(handle.db);
+      const repository = new PersistenceRepository(handle.db, new RunEventBus());
       const environment = repository.seedServiceConfigEnvironment();
       const run = repository.createQueuedRun(environment.id);
       const afterPhase = vi.fn(async () => undefined);
@@ -34,7 +35,7 @@ describe("WorkflowExecutor", () => {
 
   it("persists a complete deterministic service-config drift scan", async () => {
     const handle = createDatabase(":memory:");
-    const repository = new PersistenceRepository(handle.db);
+    const repository = new PersistenceRepository(handle.db, new RunEventBus());
     const environment = repository.seedServiceConfigEnvironment();
     const run = repository.createQueuedRun(environment.id);
     const adapter = new ServiceConfigAdapter(createObservedPath());
@@ -83,7 +84,7 @@ describe("WorkflowExecutor", () => {
 
   it("persists a complete deterministic structured-documentation drift scan", async () => {
     const handle = createDatabase(":memory:");
-    const repository = new PersistenceRepository(handle.db);
+    const repository = new PersistenceRepository(handle.db, new RunEventBus());
     const environment = repository.seedDocumentationEnvironment();
     const run = repository.createQueuedRun(environment.id);
     const adapter = new DocumentationAdapter(createObservedPath());
@@ -113,7 +114,7 @@ describe("WorkflowExecutor", () => {
 
   it("applies an approved documentation plan atomically and verifies convergence", async () => {
     const handle = createDatabase(":memory:");
-    const repository = new PersistenceRepository(handle.db);
+    const repository = new PersistenceRepository(handle.db, new RunEventBus());
     const environment = repository.seedDocumentationEnvironment();
     const run = repository.createQueuedRun(environment.id);
     const observedPath = createObservedPath();
@@ -141,7 +142,7 @@ describe("WorkflowExecutor", () => {
 
   it("applies an approved plan atomically and verifies convergence", async () => {
     const handle = createDatabase(":memory:");
-    const repository = new PersistenceRepository(handle.db);
+    const repository = new PersistenceRepository(handle.db, new RunEventBus());
     const environment = repository.seedServiceConfigEnvironment();
     const run = repository.createQueuedRun(environment.id);
     const observedPath = createObservedPath();
@@ -187,7 +188,7 @@ describe("WorkflowExecutor", () => {
 
   it("fails safely when the observed digest changed after plan generation", async () => {
     const handle = createDatabase(":memory:");
-    const repository = new PersistenceRepository(handle.db);
+    const repository = new PersistenceRepository(handle.db, new RunEventBus());
     const environment = repository.seedServiceConfigEnvironment();
     const run = repository.createQueuedRun(environment.id);
     const observedPath = createObservedPath();
@@ -233,7 +234,7 @@ describe("WorkflowExecutor", () => {
 
   it("fails invalid canonical state before reading observed state or building a plan", async () => {
     const handle = createDatabase(":memory:");
-    const repository = new PersistenceRepository(handle.db);
+    const repository = new PersistenceRepository(handle.db, new RunEventBus());
     const environment = repository.seedServiceConfigEnvironment();
     const run = repository.createQueuedRun(environment.id);
     const observedPath = createObservedPath();
@@ -257,7 +258,7 @@ describe("WorkflowExecutor", () => {
 
   it("fails malformed observed state before plan generation or mutation", async () => {
     const handle = createDatabase(":memory:");
-    const repository = new PersistenceRepository(handle.db);
+    const repository = new PersistenceRepository(handle.db, new RunEventBus());
     const environment = repository.seedServiceConfigEnvironment();
     const run = repository.createQueuedRun(environment.id);
     const observedPath = createObservedPath();
@@ -284,7 +285,7 @@ describe("WorkflowExecutor", () => {
 
   it("fails safely when the atomic apply step throws", async () => {
     const handle = createDatabase(":memory:");
-    const repository = new PersistenceRepository(handle.db);
+    const repository = new PersistenceRepository(handle.db, new RunEventBus());
     const environment = repository.seedServiceConfigEnvironment();
     const run = repository.createQueuedRun(environment.id);
     const observedPath = createObservedPath();
@@ -316,7 +317,7 @@ describe("WorkflowExecutor", () => {
 
   it("fails verification when the observed state does not converge after apply", async () => {
     const handle = createDatabase(":memory:");
-    const repository = new PersistenceRepository(handle.db);
+    const repository = new PersistenceRepository(handle.db, new RunEventBus());
     const environment = repository.seedServiceConfigEnvironment();
     const run = repository.createQueuedRun(environment.id);
     const observedPath = createObservedPath();

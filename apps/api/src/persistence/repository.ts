@@ -24,6 +24,7 @@ import {
 } from "@config-drift-guard/contracts";
 import { and, asc, eq, gt, inArray } from "drizzle-orm";
 import type { AppDatabase } from "./database.js";
+import { RunEventBus, type RunEventListener } from "./event-bus.js";
 import {
   decisions,
   environments,
@@ -33,8 +34,6 @@ import {
   runs,
   steps,
 } from "./schema.js";
-
-type RunEventListener = (event: Event) => void;
 
 export const primaryWorkflowSteps: readonly WorkflowStepKey[] = [
   "validate_canonical_state",
@@ -92,9 +91,7 @@ function parseEvent(row: typeof events.$inferSelect): Event {
 }
 
 export class PersistenceRepository {
-  private readonly eventListeners = new Map<string, Set<RunEventListener>>();
-
-  constructor(private readonly db: AppDatabase) {}
+  constructor(private readonly db: AppDatabase, private readonly eventBus: RunEventBus) {}
 
   seedServiceConfigEnvironment(): Environment {
     const timestamp = nowIso();
@@ -384,19 +381,7 @@ export class PersistenceRepository {
   }
 
   subscribeRunEvents(runId: string, listener: RunEventListener): () => void {
-    let listeners = this.eventListeners.get(runId);
-    if (listeners === undefined) {
-      listeners = new Set<RunEventListener>();
-      this.eventListeners.set(runId, listeners);
-    }
-
-    listeners.add(listener);
-    return () => {
-      listeners.delete(listener);
-      if (listeners.size === 0) {
-        this.eventListeners.delete(runId);
-      }
-    };
+    return this.eventBus.subscribe(runId, listener);
   }
 
   replaceFindings(runId: string, records: readonly Omit<Finding, "id" | "runId">[]): Finding[] {
@@ -593,22 +578,9 @@ export class PersistenceRepository {
       throw new Error("event_not_saved");
     }
     const event = parseEvent(row);
-    this.notifyRunEvent(event);
+    this.eventBus.publish(event);
     return event;
   }
 
-  private notifyRunEvent(event: Event): void {
-    const listeners = this.eventListeners.get(event.runId);
-    if (listeners === undefined) {
-      return;
-    }
 
-    for (const listener of listeners) {
-      try {
-        listener(event);
-      } catch {
-        // Event stream clients must not interrupt persisted workflow transitions.
-      }
-    }
-  }
 }
