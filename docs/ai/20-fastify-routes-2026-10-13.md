@@ -18,3 +18,7 @@ Local Node 24/pnpm workspace typecheck, production build, and all 72 unit/integr
 ## Follow-up
 
 Issue #1 Phase 2d: explicit container interface; Phase 3: repository interface segregation; Phase 4: database-free state-machine tests and route contract tests. Original implementation tag remains unchanged.
+
+## Exact-head browser qualification gate
+
+Because this change moves the SSE live-subscription call from a persistence facade to the injected event-bus port, PR #25 is explicitly opted into the bounded `ci:e2e` gate on GitHub-hosted CI. It is restricted to same-repository PRs and does not use Dubnium runners. A passing actual Chromium run, in addition to lint, typecheck, builds, and integration tests, is required before this PR is merged. No passing browser result is asserted by this log entry.
