@@ -29,3 +29,8 @@ export interface DriftAdapter {
   normalizeObserved(input: JsonValue, resourceId: string): NormalizedResourceState;
   applyTarget(expectedObservedDigest: string, target: JsonValue): ApplyResult;
 }
+
+/** Optional runtime hook for UI-friendly progress; core workflow has no timers. */
+export interface WorkflowPacer {
+  afterPhase(): Promise<void>;
+}
