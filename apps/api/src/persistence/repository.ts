@@ -26,14 +26,7 @@ import type { RunEventBusPort } from "../application/ports.js";
 import type { AppDatabase } from "./database.js";
 import { SqliteEnvironmentRepository } from "./environments.js";
 import { parseEvent, SqliteEventRepository } from "./events.js";
-import {
-  decisions,
-  events,
-  findings,
-  remediationPlans,
-  runs,
-  steps,
-} from "./schema.js";
+import { decisions, events, findings, remediationPlans, runs, steps } from "./schema.js";
 
 export const primaryWorkflowSteps: readonly WorkflowStepKey[] = [
   "validate_canonical_state",
@@ -82,7 +75,7 @@ function parseDecision(row: typeof decisions.$inferSelect | undefined): Decision
 export class SqliteRunRepository implements PersistencePorts {
   constructor(
     private readonly db: AppDatabase,
-    private readonly eventBus: RunEventBusPort,
+    eventBus: RunEventBusPort,
     private readonly environmentStore = new SqliteEnvironmentRepository(db),
     private readonly eventStore = new SqliteEventRepository(db, eventBus),
   ) {}
@@ -498,8 +491,6 @@ export class SqliteRunRepository implements PersistencePorts {
 
     return { decision, run: this.getRun(input.runId) };
   }
-
-
 }
 
 /** Legacy import alias for code that still names the aggregate repository. */

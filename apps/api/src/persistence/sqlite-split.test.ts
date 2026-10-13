@@ -1,4 +1,8 @@
-import type { EnvironmentRepository, EventRepository, RunRepository } from "@config-drift-guard/contracts";
+import type {
+  EnvironmentRepository,
+  EventRepository,
+  RunRepository,
+} from "@config-drift-guard/contracts";
 import { describe, expect, it, vi } from "vitest";
 import { createDatabase } from "./database.js";
 import { SqliteEnvironmentRepository } from "./environments.js";
@@ -14,7 +18,12 @@ describe("explicit SQLite repositories on one database", () => {
       const seed = new SqliteEnvironmentRepository(handle.db);
       const bus = new RunEventBus();
       const events: EventRepository = new SqliteEventRepository(handle.db, bus);
-      const runs: RunRepository = new SqliteRunRepository(handle.db, bus, seed, new SqliteEventRepository(handle.db, bus));
+      const runs: RunRepository = new SqliteRunRepository(
+        handle.db,
+        bus,
+        seed,
+        new SqliteEventRepository(handle.db, bus),
+      );
 
       const environment = seed.seedServiceConfigEnvironment();
       expect(environments.getEnvironment(environment.id)).toEqual(environment);
@@ -33,7 +42,9 @@ describe("explicit SQLite repositories on one database", () => {
       expect(events.listRunEventsAfter(run.id, next.id).map((event) => event.eventType)).toEqual([
         "test.after_unsubscribe",
       ]);
-      expect(() => events.listRunEventsAfter("run_missing", 0)).toThrow("run_not_found:run_missing");
+      expect(() => events.listRunEventsAfter("run_missing", 0)).toThrow(
+        "run_not_found:run_missing",
+      );
     } finally {
       handle.close();
     }

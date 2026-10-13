@@ -1,4 +1,9 @@
-import { type Event, type EventRepository, eventSchema, type JsonValue } from "@config-drift-guard/contracts";
+import {
+  type Event,
+  type EventRepository,
+  eventSchema,
+  type JsonValue,
+} from "@config-drift-guard/contracts";
 import { and, asc, eq, gt } from "drizzle-orm";
 import type { RunEventBusPort } from "../application/ports.js";
 import type { AppDatabase } from "./database.js";
@@ -20,7 +25,12 @@ export class SqliteEventRepository implements EventRepository {
   ) {}
 
   listRunEventsAfter(runId: string, afterEventId: number): Event[] {
-    const existing = this.db.select({ id: runs.id }).from(runs).where(eq(runs.id, runId)).limit(1).all()[0];
+    const existing = this.db
+      .select({ id: runs.id })
+      .from(runs)
+      .where(eq(runs.id, runId))
+      .limit(1)
+      .all()[0];
     if (existing === undefined) throw new Error(`run_not_found:${runId}`);
     return this.db
       .select()
