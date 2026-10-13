@@ -1,4 +1,4 @@
-import type { ErrorEnvelope, Finding, JsonValue, RunSnapshot } from "@config-drift-guard/contracts";
+import { StaleRemediationPlanError, type ErrorEnvelope, type Finding, type JsonValue, type RunSnapshot } from "@config-drift-guard/contracts";
 import {
   buildCompleteTargetState,
   compareNormalizedResourceStates,
@@ -8,11 +8,7 @@ import {
   type NormalizedResourceState,
 } from "@config-drift-guard/drift-engine";
 import { ZodError } from "zod";
-import {
-  type ApplyResult,
-  ServiceConfigAdapter,
-  StaleRemediationPlanError,
-} from "./adapters/service-config.js";
+import { type ApplyResult, ServiceConfigAdapter } from "./adapters/service-config.js";
 import {
   completeStep,
   failRun,
