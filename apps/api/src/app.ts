@@ -1,6 +1,6 @@
 import cors from "@fastify/cors";
 import Fastify, { type FastifyInstance } from "fastify";
-import { createAppContainer, type BuildAppOptions } from "./container.js";
+import { type BuildAppOptions, createAppContainer } from "./container.js";
 import { registerEnvironmentRoutes } from "./routes/environments.js";
 import { registerEventRoutes } from "./routes/events.js";
 import { registerHealthRoutes } from "./routes/health.js";
