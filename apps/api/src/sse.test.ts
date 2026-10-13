@@ -6,7 +6,7 @@ import type { Event } from "@config-drift-guard/contracts";
 import { describe, expect, it, vi } from "vitest";
 import { buildApp } from "./app.js";
 import { createDatabase } from "./persistence/database.js";
-import { PersistenceRepository } from "./persistence/repository.js";
+import { RunEventBus } from "./persistence/event-bus.js";
 
 describe("SSE transport lifecycle", () => {
   it("replays persisted events, delivers live changes, and releases the subscription and heartbeat on client disconnect", async () => {
@@ -16,11 +16,11 @@ describe("SSE transport lifecycle", () => {
 
     let subscribers = 0;
     let unsubscribes = 0;
-    const originalSubscribe = PersistenceRepository.prototype.subscribeRunEvents;
+    const originalSubscribe = RunEventBus.prototype.subscribe;
     const subscribeSpy = vi
-      .spyOn(PersistenceRepository.prototype, "subscribeRunEvents")
+      .spyOn(RunEventBus.prototype, "subscribe")
       .mockImplementation(function (
-        this: PersistenceRepository,
+        this: RunEventBus,
         runId: string,
         listener: (event: Event) => void,
       ) {
