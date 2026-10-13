@@ -72,7 +72,9 @@ export const test = base.extend<{ apiServer: undefined }>({
             }, 3_000);
             const deadline = setTimeout(() => {
               cleanup();
-              rejectExit(new Error("E2E API did not exit after SIGKILL; port isolation unverified"));
+              rejectExit(
+                new Error("E2E API did not exit after SIGKILL; port isolation unverified"),
+              );
             }, 7_000);
 
             function cleanup(): void {
