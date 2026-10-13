@@ -21,16 +21,16 @@ const run = {
   createdAt: timestamp,
   updatedAt: timestamp,
 } as Run;
-const queued = {
+const queued: RunSnapshot = {
   run,
   steps: [],
   findings: [],
   plan: null,
   decision: null,
   events: [],
-} satisfies RunSnapshot;
+};
 
-function setup(snapshot = queued) {
+function setup(snapshot: RunSnapshot = queued) {
   const repository = {
     listEnvironments: vi.fn(() => [environment]),
     getEnvironment: vi.fn((id: string) => (id === environment.id ? environment : null)),
@@ -88,8 +88,15 @@ describe("RunOrchestrator use-case boundary", () => {
   it("treats repeated approvals as idempotent and contradictory rejects as conflicts", () => {
     const approved = {
       ...queued,
-      decision: { action: "approved" },
-    } as RunSnapshot;
+      decision: {
+        id: "decision_test",
+        runId: run.id,
+        action: "approved",
+        actor: "local-operator",
+        comment: null,
+        createdAt: timestamp,
+      },
+    } satisfies RunSnapshot;
     const ctx = setup(approved);
     expect(ctx.orchestrator.approveRun(run.id, null)).toEqual({
       snapshot: approved,
@@ -103,7 +110,16 @@ describe("RunOrchestrator use-case boundary", () => {
     const ready = {
       ...queued,
       run: { ...run, status: "awaiting_approval" },
-      plan: { id: "plan_test" },
+      plan: {
+        id: "plan_test",
+        runId: run.id,
+        canonicalDigest: "sha256:canonical",
+        expectedObservedDigest: "sha256:observed",
+        targetDigest: "sha256:target",
+        target: {},
+        engineVersion: "1",
+        createdAt: timestamp,
+      },
     } as RunSnapshot;
     const ctx = setup(ready);
     const outcome = ctx.orchestrator.approveRun(run.id, "approved");
