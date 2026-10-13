@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { JsonValue } from "@config-drift-guard/contracts";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { DocumentationAdapter } from "./adapters/documentation.js";
 import { ServiceConfigAdapter } from "./adapters/service-config.js";
 import { createDatabase } from "./persistence/database.js";
@@ -11,6 +11,27 @@ import { approveRun } from "./state-machine.js";
 import { WorkflowExecutor } from "./workflow-executor.js";
 
 describe("WorkflowExecutor", () => {
+  it("uses explicitly injected pacing without coupling the executor to timers", async () => {
+    const handle = createDatabase(":memory:");
+    try {
+      const repository = new PersistenceRepository(handle.db);
+      const environment = repository.seedServiceConfigEnvironment();
+      const run = repository.createQueuedRun(environment.id);
+      const afterPhase = vi.fn(async () => undefined);
+
+      const snapshot = await new WorkflowExecutor(
+        repository,
+        new ServiceConfigAdapter(createObservedPath()),
+        { afterPhase },
+      ).execute(run.id);
+
+      expect(snapshot.run.status).toBe("awaiting_approval");
+      expect(afterPhase).toHaveBeenCalledTimes(6);
+    } finally {
+      handle.close();
+    }
+  });
+
   it("persists a complete deterministic service-config drift scan", async () => {
     const handle = createDatabase(":memory:");
     const repository = new PersistenceRepository(handle.db);
