@@ -7,11 +7,11 @@ import type { ResettableDriftAdapter, WorkflowPacer } from "./application/ports.
 import { createDatabase, type DatabaseHandle } from "./persistence/database.js";
 import { RunEventBus } from "./persistence/event-bus.js";
 import { PersistenceRepository } from "./persistence/repository.js";
-import { RunOrchestrator } from "./run-orchestrator.js";
 import { registerEnvironmentRoutes } from "./routes/environments.js";
 import { registerEventRoutes } from "./routes/events.js";
 import { registerHealthRoutes } from "./routes/health.js";
 import { registerRunRoutes } from "./routes/runs.js";
+import { RunOrchestrator } from "./run-orchestrator.js";
 import { WorkflowExecutor } from "./workflow-executor.js";
 
 const LOCAL_ORIGINS = new Set(["localhost", "127.0.0.1", "::1"]);
