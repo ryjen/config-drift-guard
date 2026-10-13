@@ -3,8 +3,6 @@ import type { FastifyInstance } from "fastify";
 import { apiError } from "../api-error.js";
 import type { EventReadRepository, RunEventBusPort } from "../application/ports.js";
 
-
-
 export function registerEventRoutes(
   app: FastifyInstance,
   repository: EventReadRepository,
