@@ -35,7 +35,7 @@ For a demo with visible delays between workflow phases:
 corepack pnpm demo
 ```
 
-This sets `QUEUE_DELAY_MS=2000` and `PHASE_DELAY_MS=500` so the operator console shows each transition clearly.
+This explicitly enables `DEMO_MODE=1` and configures `QUEUE_DELAY_MS=2000` and `PHASE_DELAY_MS=500` so the operator console shows each transition clearly. Normal development and production ignore these delay settings; they are provided only by the demo runtime adapter.
 
 The API defaults to `http://127.0.0.1:4000` and the web app defaults to `http://127.0.0.1:3000`.
 
