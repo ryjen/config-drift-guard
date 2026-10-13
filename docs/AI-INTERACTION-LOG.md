@@ -43,6 +43,7 @@ Session records and historical transcripts are in [`docs/ai/`](ai/). Transcript 
 | 12 — Meta-review and merge-gate (summary, full export pending) | [`12-meta-review-2026-10-12.md`](ai/12-meta-review-2026-10-12.md) |
 | 13 — Browser E2E delivery attempt (summary, unverified browser) | [`13-browser-e2e-2026-10-12.md`](ai/13-browser-e2e-2026-10-12.md) |
 | 14 — SSE response-close lifecycle (engineering summary) | [`14-sse-response-close-2026-10-12.md`](ai/14-sse-response-close-2026-10-12.md) |
+| 15 — Clean Architecture Phase 1a, domain error (summary) | [`15-domain-error-phase1a-2026-10-12.md`](ai/15-domain-error-phase1a-2026-10-12.md) |
 
 ## Important decisions already established
 

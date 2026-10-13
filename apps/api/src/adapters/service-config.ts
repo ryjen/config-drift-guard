@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
+import { StaleRemediationPlanError } from "@config-drift-guard/contracts";
 import {
   digestJson,
   digestNormalizedResourceState,
@@ -45,15 +46,6 @@ export interface ApplyResult {
   readonly observedDigestBefore: string;
   readonly observedDigestAfter: string;
   readonly targetDigest: string;
-}
-
-export class StaleRemediationPlanError extends Error {
-  constructor(
-    readonly expectedObservedDigest: string,
-    readonly currentObservedDigest: string,
-  ) {
-    super("stale_remediation_plan");
-  }
 }
 
 export interface LoadedServiceConfigState {

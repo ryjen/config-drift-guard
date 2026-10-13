@@ -188,3 +188,5 @@ export const runSnapshotSchema = z.object({
   events: z.array(eventSchema),
 });
 export type RunSnapshot = z.infer<typeof runSnapshotSchema>;
+
+export { StaleRemediationPlanError } from "./errors.js";
