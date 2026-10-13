@@ -21,7 +21,14 @@ const run = {
   createdAt: timestamp,
   updatedAt: timestamp,
 } as Run;
-const queued = { run, steps: [], findings: [], plan: null, decision: null, events: [] } satisfies RunSnapshot;
+const queued = {
+  run,
+  steps: [],
+  findings: [],
+  plan: null,
+  decision: null,
+  events: [],
+} satisfies RunSnapshot;
 
 function setup(snapshot = queued) {
   const repository = {

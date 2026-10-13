@@ -64,11 +64,16 @@ export class RunOrchestrator {
     // The adapter/repository's unique active-run constraint remains authoritative.
     const run = this.repository.createQueuedRun(environment.id);
     const snapshot = this.repository.getRunSnapshot(run.id);
-    this.schedule(() => this.executorFactory(this.adapters[environment.adapterKind]).execute(run.id));
+    this.schedule(() =>
+      this.executorFactory(this.adapters[environment.adapterKind]).execute(run.id),
+    );
     return snapshot;
   }
 
-  approveRun(runId: string, comment: string | null): {
+  approveRun(
+    runId: string,
+    comment: string | null,
+  ): {
     readonly snapshot: RunSnapshot;
     readonly newlyApproved: boolean;
   } {

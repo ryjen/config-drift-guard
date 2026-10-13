@@ -117,7 +117,9 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   });
 
   app.get<{ Reply: HealthResponse }>("/health", async () => healthResponse);
-  app.get<{ Reply: Environment[] }>("/api/environments", async () => orchestrator.listEnvironments());
+  app.get<{ Reply: Environment[] }>("/api/environments", async () =>
+    orchestrator.listEnvironments(),
+  );
 
   app.post<{
     Params: { id: string };
@@ -264,7 +266,11 @@ function runOperationErrorResponse(
 ): ApiErrorResponse {
   if (isActiveRunConstraintError(error)) {
     reply.code(409);
-    return apiError("active_run_exists", "An active run already exists for this environment", requestId);
+    return apiError(
+      "active_run_exists",
+      "An active run already exists for this environment",
+      requestId,
+    );
   }
   if (!(error instanceof RunOperationError)) throw error;
 
@@ -277,10 +283,18 @@ function runOperationErrorResponse(
       return apiError("run_not_found", "Run not found", requestId);
     case "active_run_exists":
       reply.code(409);
-      return apiError("active_run_exists", "An active run already exists for this environment", requestId);
+      return apiError(
+        "active_run_exists",
+        "An active run already exists for this environment",
+        requestId,
+      );
     case "contradictory_decision":
       reply.code(409);
-      return apiError("contradictory_decision", "A contradictory decision already exists", requestId);
+      return apiError(
+        "contradictory_decision",
+        "A contradictory decision already exists",
+        requestId,
+      );
     case "run_not_awaiting_approval":
       reply.code(409);
       return apiError("run_not_awaiting_approval", "Run is not awaiting approval", requestId);

@@ -58,8 +58,14 @@ export interface RunOrchestratorRepository extends WorkflowRepository {
   getEnvironment(environmentId: string): Environment | null;
   hasActiveRun(environmentId: string): boolean;
   createQueuedRun(environmentId: string): Run;
-  recordDecisionAndApprove(input: Omit<Decision, "id" | "createdAt">): { decision: Decision; run: Run };
-  recordDecisionAndReject(input: Omit<Decision, "id" | "createdAt">): { decision: Decision; run: Run };
+  recordDecisionAndApprove(input: Omit<Decision, "id" | "createdAt">): {
+    decision: Decision;
+    run: Run;
+  };
+  recordDecisionAndReject(input: Omit<Decision, "id" | "createdAt">): {
+    decision: Decision;
+    run: Run;
+  };
 }
 
 export interface ResettableDriftAdapter extends DriftAdapter {
