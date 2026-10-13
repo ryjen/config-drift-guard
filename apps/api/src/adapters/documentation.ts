@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
+import { StaleRemediationPlanError } from "@config-drift-guard/contracts";
 import {
   digestJson,
   digestNormalizedResourceState,
@@ -8,7 +9,7 @@ import {
 } from "@config-drift-guard/drift-engine";
 import { z } from "zod";
 import { writeTextAtomically } from "./atomic-file.js";
-import { type ApplyResult, StaleRemediationPlanError } from "./service-config.js";
+import type { ApplyResult } from "./service-config.js";
 
 const schemaPropertySchema = z.object({
   type: z.enum(["string", "integer", "number", "boolean"]),
