@@ -99,13 +99,14 @@ describe("PersistenceRepository", () => {
 
   it("replays events after a cursor and cleans up run event listeners", () => {
     const handle = createDatabase(":memory:");
-    const repository = new PersistenceRepository(handle.db, new RunEventBus());
+    const bus = new RunEventBus();
+    const repository = new PersistenceRepository(handle.db, bus);
     const environment = repository.seedServiceConfigEnvironment();
     const run = repository.createQueuedRun(environment.id);
     const received: string[] = [];
 
     const firstEvent = repository.appendEvent(run.id, "test.before_subscription", { status: "ok" });
-    const unsubscribe = repository.subscribeRunEvents(run.id, (event) => {
+    const unsubscribe = bus.subscribe(run.id, (event) => {
       received.push(event.eventType);
     });
 
