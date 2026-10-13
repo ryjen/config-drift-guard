@@ -1,4 +1,4 @@
-import type { Finding, JsonValue, RunSnapshot, RunStateStore } from "@config-drift-guard/contracts";
+import type { Event, Finding, JsonValue, RunSnapshot, RunStateStore } from "@config-drift-guard/contracts";
 import type { NormalizedResourceState } from "@config-drift-guard/drift-engine";
 
 export interface WorkflowRepository extends RunStateStore {
@@ -33,4 +33,12 @@ export interface DriftAdapter {
 /** Optional runtime hook for UI-friendly progress; core workflow has no timers. */
 export interface WorkflowPacer {
   afterPhase(): Promise<void>;
+}
+
+/** Public in-process delivery contract. Persistence does not own subscribers. */
+export type RunEventListener = (event: Event) => void;
+
+export interface RunEventBusPort {
+  subscribe(runId: string, listener: RunEventListener): () => void;
+  publish(event: Event): void;
 }
