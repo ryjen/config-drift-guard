@@ -1,16 +1,11 @@
-import type { Event, Run } from "@config-drift-guard/contracts";
+import type { Event } from "@config-drift-guard/contracts";
 import type { FastifyInstance } from "fastify";
 import { apiError } from "../api-error.js";
-import type { RunEventBusPort } from "../application/ports.js";
-
-export interface RunEventReadRepository {
-  getRun(runId: string): Run;
-  listRunEventsAfter(runId: string, afterEventId: number): Event[];
-}
+import type { EventReadRepository, RunEventBusPort } from "../application/ports.js";
 
 export function registerEventRoutes(
   app: FastifyInstance,
-  repository: RunEventReadRepository,
+  repository: EventReadRepository,
   eventBus: RunEventBusPort,
 ): void {
   app.get<{ Params: { runId: string } }>("/api/runs/:runId/events", async (request, reply) => {
