@@ -1,7 +1,6 @@
 import type { Finding, JsonValue, RunSnapshot, RunStateStore } from "@config-drift-guard/contracts";
 import type { NormalizedResourceState } from "@config-drift-guard/drift-engine";
 
-
 export interface WorkflowRepository extends RunStateStore {
   replaceFindings(runId: string, records: readonly Omit<Finding, "id" | "runId">[]): Finding[];
   saveRemediationPlan(input: {
