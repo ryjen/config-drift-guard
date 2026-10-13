@@ -28,3 +28,15 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm rebuild better-sqlite3
       - run: pnpm check
+
+      # One-time, bounded qualification for this repository-owned PR.
+      # Fork PRs and other branches do not run browser binaries.
+      - name: Install Chromium (PR 18 qualification)
+        if: github.event_name == 'pull_request' && github.event.pull_request.number == 18 && github.event.pull_request.head.repo.full_name == github.repository
+        timeout-minutes: 5
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Browser E2E (PR 18 qualification)
+        if: github.event_name == 'pull_request' && github.event.pull_request.number == 18 && github.event.pull_request.head.repo.full_name == github.repository
+        timeout-minutes: 5
+        run: pnpm test:e2e
