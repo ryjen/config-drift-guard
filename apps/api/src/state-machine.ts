@@ -2,9 +2,9 @@ import type {
   ErrorEnvelope,
   JsonValue,
   Run,
+  RunStateStore,
   WorkflowStepKey,
 } from "@config-drift-guard/contracts";
-import type { RunStateStore } from "./application/ports.js";
 
 
 

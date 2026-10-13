@@ -6,7 +6,7 @@
 **Record type:** Engineering summary, not a complete verbatim transcript.
 
 ## Architecture decision
-Keep wire schemas/domain errors in contracts and pure drift types in drift-engine. Define RunStateStore, WorkflowRepository, DriftAdapter and ApplyResult in apps/api/src/application/ports.ts with type-only inward dependencies; avoid a reverse contracts-to-drift-engine package dependency. State machine and executor depend on ports, not concrete persistence/adapter implementations. Both adapters implement DriftAdapter. WorkflowExecutor now always receives an explicit adapter from the application composition root.
+Keep wire schemas/domain errors in contracts and pure drift types in drift-engine. Define the pure RunStateStore interface in shared contracts, and WorkflowRepository, DriftAdapter and ApplyResult in apps/api/src/application/ports.ts with type-only inward dependencies; avoid a reverse contracts-to-drift-engine package dependency. State machine depends only on the inner contracts boundary; executor depends on application ports, not concrete persistence/adapter implementations. Both adapters implement DriftAdapter. WorkflowExecutor now always receives an explicit adapter from the application composition root.
 
 This is intended as structural refactoring with no runtime change. Demo timing and route extraction remain separate issues.
 

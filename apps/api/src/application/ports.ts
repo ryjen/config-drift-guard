@@ -1,39 +1,12 @@
 import type {
-  ErrorEnvelope,
   Finding,
   JsonValue,
-  Run,
+  RunStateStore,
   RunSnapshot,
-  RunStatus,
-  StepStatus,
-  WorkflowStepKey,
 } from "@config-drift-guard/contracts";
 import type { NormalizedResourceState } from "@config-drift-guard/drift-engine";
 
-export interface RunStateStore {
-  getRun(runId: string): Run;
-  updateRunState(
-    runId: string,
-    input: {
-      readonly status: RunStatus;
-      readonly currentStep?: WorkflowStepKey | null;
-      readonly canonicalDigest?: string | null;
-      readonly observedDigest?: string | null;
-      readonly error?: ErrorEnvelope | null;
-    },
-  ): Run;
-  updateStepState(
-    runId: string,
-    key: WorkflowStepKey,
-    input: {
-      readonly status: StepStatus;
-      readonly message?: string | null;
-      readonly output?: JsonValue | null;
-      readonly error?: ErrorEnvelope | null;
-    },
-  ): void;
-  skipPendingSteps(runId: string): void;
-}
+
 
 export interface WorkflowRepository extends RunStateStore {
   replaceFindings(runId: string, records: readonly Omit<Finding, "id" | "runId">[]): Finding[];

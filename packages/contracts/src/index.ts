@@ -190,3 +190,4 @@ export const runSnapshotSchema = z.object({
 export type RunSnapshot = z.infer<typeof runSnapshotSchema>;
 
 export { StaleRemediationPlanError } from "./errors.js";
+export type { RunStateStore } from "./ports.js";
