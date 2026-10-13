@@ -20,3 +20,7 @@ Local TypeScript, build and 74 tests passed before renaming and added integratio
 ## Follow-up
 
 Phase 4 covers database-free state machine stubs, mock adapters and route contract tests. The original-implementation tag is unchanged.
+
+## Final qualification requirement
+
+PR #28 carries the same-repository opt-in `ci:e2e` label. Because this refactor extracts durable event storage consumed by SSE, the exact PR head must run and pass both real Chromium workflows in the hosted CI job in addition to `pnpm check`. This is a pending acceptance gate, not a claim of browser validation. The original `original-implementation` tag remains untouched.
