@@ -1,7 +1,7 @@
 import type { Event, Run } from "@config-drift-guard/contracts";
 import type { FastifyInstance } from "fastify";
-import type { RunEventBusPort } from "../application/ports.js";
 import { apiError } from "../api-error.js";
+import type { RunEventBusPort } from "../application/ports.js";
 
 export interface RunEventReadRepository {
   getRun(runId: string): Run;
@@ -68,7 +68,6 @@ export function registerEventRoutes(
       writeEvent(event);
     }
   });
-
 }
 
 function parseLastEventId(value: string | string[] | undefined): number {
