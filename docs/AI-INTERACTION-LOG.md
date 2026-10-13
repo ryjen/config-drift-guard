@@ -41,6 +41,7 @@ Session records and historical transcripts are in [`docs/ai/`](ai/). Transcript 
 | 10 — Maintenance | [`10-maintenance.md`](ai/10-maintenance.md) |
 | 11 — P1 correctness fixes | [`11-p1-correctness-fixes.md`](ai/11-p1-correctness-fixes.md) |
 | 12 — Meta-review and merge-gate (summary, full export pending) | [`12-meta-review-2026-10-12.md`](ai/12-meta-review-2026-10-12.md) |
+| 13 — Browser E2E delivery attempt (summary, unverified browser) | [`13-browser-e2e-2026-10-12.md`](ai/13-browser-e2e-2026-10-12.md) |
 
 ## Important decisions already established
 

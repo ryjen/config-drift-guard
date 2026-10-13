@@ -28,3 +28,15 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm rebuild better-sqlite3
       - run: pnpm check
+
+      # Opt-in browser qualification on trusted, same-repo PRs only.
+      # Cost is bounded: no extra job, and fork PRs never run these steps.
+      - name: Install Chromium (opt-in E2E)
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'ci:e2e')
+        timeout-minutes: 5
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Browser E2E (opt-in)
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'ci:e2e')
+        timeout-minutes: 5
+        run: pnpm test:e2e
