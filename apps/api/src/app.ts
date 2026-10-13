@@ -358,7 +358,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         reply.raw.write(":heartbeat\n\n");
       }
     }, 15_000);
-    request.raw.on("close", () => {
+    reply.raw.once("close", () => {
       clearInterval(heartbeat);
       unsubscribe();
     });
