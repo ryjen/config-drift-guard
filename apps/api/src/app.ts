@@ -13,11 +13,12 @@ import { z } from "zod";
 import { DocumentationAdapter } from "./adapters/documentation.js";
 import { ServiceConfigAdapter } from "./adapters/service-config.js";
 import { apiError } from "./api-error.js";
-import type { DriftAdapter, WorkflowPacer } from "./application/ports.js";
+import type { ResettableDriftAdapter, WorkflowPacer } from "./application/ports.js";
 import { isActiveRunConstraintError } from "./persistence/constraint-errors.js";
 import { createDatabase, type DatabaseHandle } from "./persistence/database.js";
 import { RunEventBus } from "./persistence/event-bus.js";
 import { PersistenceRepository } from "./persistence/repository.js";
+import { RunOperationError, RunOrchestrator } from "./run-orchestrator.js";
 import { WorkflowExecutor } from "./workflow-executor.js";
 
 const DECISION_COMMENT_MAX_LENGTH = 1000;
@@ -56,7 +57,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   const adapters = {
     documentation: documentationAdapter,
     service_config: serviceConfigAdapter,
-  } satisfies Record<AdapterKind, DriftAdapter>;
+  } satisfies Record<AdapterKind, ResettableDriftAdapter>;
   const pendingWorkflowTimers = new Set<ReturnType<typeof setTimeout>>();
   const activeWorkflows = new Set<Promise<unknown>>();
   const deferWork = options.deferWorkflow ?? ((callback: () => void) => setTimeout(callback, 0));
@@ -75,6 +76,13 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     });
     pendingWorkflowTimers.add(timer);
   };
+
+  const orchestrator = new RunOrchestrator(
+    repository,
+    adapters,
+    scheduleWorkflow,
+    (adapter) => new WorkflowExecutor(repository, adapter, options.workflowPacer),
+  );
 
   repository.seedServiceConfigEnvironment();
   repository.seedDocumentationEnvironment();
@@ -109,81 +117,36 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   });
 
   app.get<{ Reply: HealthResponse }>("/health", async () => healthResponse);
-  app.get<{ Reply: Environment[] }>("/api/environments", async () => repository.listEnvironments());
+  app.get<{ Reply: Environment[] }>("/api/environments", async () => orchestrator.listEnvironments());
 
   app.post<{
     Params: { id: string };
     Body: unknown;
     Reply: { status: "reset"; environment: Environment } | ApiErrorResponse;
   }>("/api/environments/:id/reset", async (request, reply) => {
-    const requestId = request.id;
     const parsed = emptyRequestSchema.safeParse(request.body ?? {});
     if (!parsed.success) {
       reply.code(400);
-      return apiError("invalid_request", "Request body must be empty", requestId);
+      return apiError("invalid_request", "Request body must be empty", request.id);
     }
-
-    const environment = repository.getEnvironment(request.params.id);
-    if (environment === null) {
-      reply.code(404);
-      return apiError("environment_not_found", "Environment not found", requestId);
+    try {
+      const environment = orchestrator.resetEnvironment(request.params.id);
+      return { status: "reset", environment };
+    } catch (error) {
+      return runOperationErrorResponse(error, reply, request.id);
     }
-
-    if (repository.hasActiveRun(environment.id)) {
-      reply.code(409);
-      return apiError(
-        "active_run_exists",
-        "An active run already exists for this environment",
-        requestId,
-      );
-    }
-
-    adapters[environment.adapterKind].resetObserved();
-    return { status: "reset", environment };
   });
 
   app.post<{ Params: { id: string }; Reply: RunSnapshot | ApiErrorResponse }>(
     "/api/environments/:id/runs",
     async (request, reply) => {
-      const requestId = request.id;
-      const environment = repository.getEnvironment(request.params.id);
-      if (environment === null) {
-        reply.code(404);
-        return apiError("environment_not_found", "Environment not found", requestId);
-      }
-
-      if (repository.hasActiveRun(environment.id)) {
-        reply.code(409);
-        return apiError(
-          "active_run_exists",
-          "An active run already exists for this environment",
-          requestId,
-        );
-      }
-
-      let run: ReturnType<typeof repository.createQueuedRun>;
       try {
-        run = repository.createQueuedRun(environment.id);
+        const snapshot = orchestrator.createRun(request.params.id);
+        reply.code(201);
+        return snapshot;
       } catch (error) {
-        if (isActiveRunConstraintError(error)) {
-          reply.code(409);
-          return apiError(
-            "active_run_exists",
-            "An active run already exists for this environment",
-            requestId,
-          );
-        }
-        throw error;
+        return runOperationErrorResponse(error, reply, request.id);
       }
-      const snapshot = repository.getRunSnapshot(run.id);
-      const executor = new WorkflowExecutor(
-        repository,
-        adapters[environment.adapterKind],
-        options.workflowPacer,
-      );
-      scheduleWorkflow(() => executor.execute(run.id));
-      reply.code(201);
-      return snapshot;
     },
   );
 
@@ -191,14 +154,9 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     "/api/runs/:runId",
     async (request, reply) => {
       try {
-        return repository.getRunSnapshot(request.params.runId);
+        return orchestrator.getRunSnapshot(request.params.runId);
       } catch (error) {
-        if (error instanceof Error && error.message.startsWith("run_not_found:")) {
-          reply.code(404);
-          return apiError("run_not_found", "Run not found", request.id);
-        }
-
-        throw error;
+        return runOperationErrorResponse(error, reply, request.id);
       }
     },
   );
@@ -208,61 +166,18 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     Body: unknown;
     Reply: RunSnapshot | ApiErrorResponse;
   }>("/api/runs/:runId/approve", async (request, reply) => {
-    const requestId = request.id;
     const parsed = decisionRequestSchema.safeParse(request.body ?? {});
     if (!parsed.success) {
       reply.code(400);
-      return apiError("invalid_request", "Invalid decision request", requestId);
+      return apiError("invalid_request", "Invalid decision request", request.id);
     }
-
-    const snapshot = getSnapshotOrReplyNotFound(repository, request.params.runId, reply);
-    if (snapshot === null) {
-      return apiError("run_not_found", "Run not found", requestId);
-    }
-
-    if (snapshot.decision !== null) {
-      if (snapshot.decision.action === "approved") {
-        return snapshot;
-      }
-      reply.code(409);
-      return apiError(
-        "contradictory_decision",
-        "A contradictory decision already exists",
-        requestId,
-      );
-    }
-
-    if (snapshot.run.status !== "awaiting_approval" || snapshot.plan === null) {
-      reply.code(409);
-      return apiError("run_not_awaiting_approval", "Run is not awaiting approval", requestId);
-    }
-
     try {
-      repository.recordDecisionAndApprove({
-        runId: snapshot.run.id,
-        action: "approved",
-        actor: "local-operator",
-        comment: parsed.data.comment ?? null,
-      });
+      const result = orchestrator.approveRun(request.params.runId, parsed.data.comment ?? null);
+      if (result.newlyApproved) reply.code(202);
+      return result.snapshot;
     } catch (error) {
-      if (error instanceof Error && error.message === "decision_already_exists") {
-        return repository.getRunSnapshot(snapshot.run.id);
-      }
-      throw error;
+      return runOperationErrorResponse(error, reply, request.id);
     }
-    const environment = repository.getEnvironment(snapshot.run.environmentId);
-    if (environment === null) {
-      reply.code(404);
-      return apiError("environment_not_found", "Environment not found", requestId);
-    }
-    const executor = new WorkflowExecutor(
-      repository,
-      adapters[environment.adapterKind],
-      options.workflowPacer,
-    );
-    scheduleWorkflow(() => executor.executeReconciliation(snapshot.run.id));
-    reply.code(202);
-    return repository.getRunSnapshot(snapshot.run.id);
   });
 
   app.post<{
@@ -270,49 +185,16 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     Body: unknown;
     Reply: RunSnapshot | ApiErrorResponse;
   }>("/api/runs/:runId/reject", async (request, reply) => {
-    const requestId = request.id;
     const parsed = decisionRequestSchema.safeParse(request.body ?? {});
     if (!parsed.success) {
       reply.code(400);
-      return apiError("invalid_request", "Invalid decision request", requestId);
+      return apiError("invalid_request", "Invalid decision request", request.id);
     }
-
-    const snapshot = getSnapshotOrReplyNotFound(repository, request.params.runId, reply);
-    if (snapshot === null) {
-      return apiError("run_not_found", "Run not found", requestId);
-    }
-
-    if (snapshot.decision !== null) {
-      if (snapshot.decision.action === "rejected") {
-        return snapshot;
-      }
-      reply.code(409);
-      return apiError(
-        "contradictory_decision",
-        "A contradictory decision already exists",
-        requestId,
-      );
-    }
-
-    if (snapshot.run.status !== "awaiting_approval") {
-      reply.code(409);
-      return apiError("run_not_awaiting_approval", "Run is not awaiting approval", requestId);
-    }
-
     try {
-      repository.recordDecisionAndReject({
-        runId: snapshot.run.id,
-        action: "rejected",
-        actor: "local-operator",
-        comment: parsed.data.comment ?? null,
-      });
+      return orchestrator.rejectRun(request.params.runId, parsed.data.comment ?? null);
     } catch (error) {
-      if (error instanceof Error && error.message === "decision_already_exists") {
-        return repository.getRunSnapshot(snapshot.run.id);
-      }
-      throw error;
+      return runOperationErrorResponse(error, reply, request.id);
     }
-    return repository.getRunSnapshot(snapshot.run.id);
   });
 
   app.get<{ Params: { runId: string } }>("/api/runs/:runId/events", async (request, reply) => {
@@ -374,20 +256,34 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   return app;
 }
 
-function getSnapshotOrReplyNotFound(
-  repository: PersistenceRepository,
-  runId: string,
+/** Map domain outcomes and infra uniqueness conflicts to the existing HTTP envelope. */
+function runOperationErrorResponse(
+  error: unknown,
   reply: { code(statusCode: number): unknown },
-): RunSnapshot | null {
-  try {
-    return repository.getRunSnapshot(runId);
-  } catch (error) {
-    if (error instanceof Error && error.message.startsWith("run_not_found:")) {
-      reply.code(404);
-      return null;
-    }
+  requestId: string,
+): ApiErrorResponse {
+  if (isActiveRunConstraintError(error)) {
+    reply.code(409);
+    return apiError("active_run_exists", "An active run already exists for this environment", requestId);
+  }
+  if (!(error instanceof RunOperationError)) throw error;
 
-    throw error;
+  switch (error.code) {
+    case "environment_not_found":
+      reply.code(404);
+      return apiError("environment_not_found", "Environment not found", requestId);
+    case "run_not_found":
+      reply.code(404);
+      return apiError("run_not_found", "Run not found", requestId);
+    case "active_run_exists":
+      reply.code(409);
+      return apiError("active_run_exists", "An active run already exists for this environment", requestId);
+    case "contradictory_decision":
+      reply.code(409);
+      return apiError("contradictory_decision", "A contradictory decision already exists", requestId);
+    case "run_not_awaiting_approval":
+      reply.code(409);
+      return apiError("run_not_awaiting_approval", "Run is not awaiting approval", requestId);
   }
 }
 
