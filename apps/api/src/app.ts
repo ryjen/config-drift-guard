@@ -58,10 +58,11 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   } satisfies Record<AdapterKind, DriftAdapter>;
   const pendingWorkflowTimers = new Set<ReturnType<typeof setTimeout>>();
   const activeWorkflows = new Set<Promise<unknown>>();
+  const deferWork = options.deferWorkflow ?? ((callback: () => void) => setTimeout(callback, 0));
   let isClosing = false;
 
   const scheduleWorkflow = (workflow: () => Promise<unknown>): void => {
-    const timer = (options.deferWorkflow ?? ((callback: () => void) => setTimeout(callback, 0)))(() => {
+    const timer = deferWork(() => {
       pendingWorkflowTimers.delete(timer);
       if (isClosing) {
         return;
