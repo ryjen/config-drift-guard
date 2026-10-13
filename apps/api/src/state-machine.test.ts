@@ -1,6 +1,7 @@
 import { type RunStatus, runStatusSchema } from "@config-drift-guard/contracts";
 import { describe, expect, it } from "vitest";
 import { createDatabase } from "./persistence/database.js";
+import { RunEventBus } from "./persistence/event-bus.js";
 import { PersistenceRepository } from "./persistence/repository.js";
 import {
   approveRun,
@@ -18,7 +19,7 @@ const statuses = runStatusSchema.options;
 describe("run state machine", () => {
   it("allows the legal detection, approval, reconciliation, rejection, and failure transitions", () => {
     const handle = createDatabase(":memory:");
-    const repository = new PersistenceRepository(handle.db);
+    const repository = new PersistenceRepository(handle.db, new RunEventBus());
     const environment = repository.seedServiceConfigEnvironment();
     const run = repository.createQueuedRun(environment.id);
 
@@ -148,7 +149,7 @@ function createRunWithStatus(
 
 function freshRepo() {
   const handle = createDatabase(":memory:");
-  const repository = new PersistenceRepository(handle.db);
+  const repository = new PersistenceRepository(handle.db, new RunEventBus());
   const environment = repository.seedServiceConfigEnvironment();
   return { handle, repository, environment };
 }

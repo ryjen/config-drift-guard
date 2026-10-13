@@ -16,6 +16,7 @@ import { apiError } from "./api-error.js";
 import type { DriftAdapter, WorkflowPacer } from "./application/ports.js";
 import { isActiveRunConstraintError } from "./persistence/constraint-errors.js";
 import { createDatabase, type DatabaseHandle } from "./persistence/database.js";
+import { RunEventBus } from "./persistence/event-bus.js";
 import { PersistenceRepository } from "./persistence/repository.js";
 import { WorkflowExecutor } from "./workflow-executor.js";
 
@@ -49,7 +50,7 @@ export interface BuildAppOptions {
 export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyInstance> {
   const app = Fastify({ logger: true });
   const database = options.database ?? createDatabase();
-  const repository = new PersistenceRepository(database.db);
+  const repository = new PersistenceRepository(database.db, new RunEventBus());
   const serviceConfigAdapter = new ServiceConfigAdapter(options.serviceConfigObservedPath);
   const documentationAdapter = new DocumentationAdapter(options.documentationObservedPath);
   const adapters = {
