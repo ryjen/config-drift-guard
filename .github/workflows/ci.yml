@@ -29,14 +29,14 @@ jobs:
       - run: pnpm rebuild better-sqlite3
       - run: pnpm check
 
-      # One-time, bounded qualification for this repository-owned PR.
-      # Fork PRs and other branches do not run browser binaries.
-      - name: Install Chromium (PR 18 qualification)
-        if: github.event_name == 'pull_request' && github.event.pull_request.number == 18 && github.event.pull_request.head.repo.full_name == github.repository
+      # Opt-in browser qualification on trusted, same-repo PRs only.
+      # Cost is bounded: no extra job, and fork PRs never run these steps.
+      - name: Install Chromium (opt-in E2E)
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'ci:e2e')
         timeout-minutes: 5
         run: pnpm exec playwright install --with-deps chromium
 
-      - name: Browser E2E (PR 18 qualification)
-        if: github.event_name == 'pull_request' && github.event.pull_request.number == 18 && github.event.pull_request.head.repo.full_name == github.repository
+      - name: Browser E2E (opt-in)
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'ci:e2e')
         timeout-minutes: 5
         run: pnpm test:e2e
