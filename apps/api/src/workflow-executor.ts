@@ -24,7 +24,6 @@ import {
   startStep,
 } from "./state-machine.js";
 
-
 export class StaleCanonicalStateError extends Error {
   constructor(
     readonly expectedCanonicalDigest: string,
