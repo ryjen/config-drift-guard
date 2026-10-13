@@ -17,21 +17,19 @@ describe("SSE transport lifecycle", () => {
     let subscribers = 0;
     let unsubscribes = 0;
     const originalSubscribe = RunEventBus.prototype.subscribe;
-    const subscribeSpy = vi
-      .spyOn(RunEventBus.prototype, "subscribe")
-      .mockImplementation(function (
-        this: RunEventBus,
-        runId: string,
-        listener: (event: Event) => void,
-      ) {
-        const stop = originalSubscribe.call(this, runId, listener);
-        subscribers += 1;
-        return () => {
-          unsubscribes += 1;
-          subscribers -= 1;
-          stop();
-        };
-      });
+    const subscribeSpy = vi.spyOn(RunEventBus.prototype, "subscribe").mockImplementation(function (
+      this: RunEventBus,
+      runId: string,
+      listener: (event: Event) => void,
+    ) {
+      const stop = originalSubscribe.call(this, runId, listener);
+      subscribers += 1;
+      return () => {
+        unsubscribes += 1;
+        subscribers -= 1;
+        stop();
+      };
+    });
     const intervalSpy = vi.spyOn(globalThis, "setInterval");
     const clearIntervalSpy = vi.spyOn(globalThis, "clearInterval");
 
