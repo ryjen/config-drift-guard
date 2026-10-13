@@ -1,8 +1,8 @@
-import type { Event } from "@config-drift-guard/contracts";
-import { get } from "node:http";
 import { mkdtempSync } from "node:fs";
+import { get } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import type { Event } from "@config-drift-guard/contracts";
 import { describe, expect, it, vi } from "vitest";
 import { buildApp } from "./app.js";
 import { createDatabase } from "./persistence/database.js";
@@ -19,7 +19,11 @@ describe("SSE transport lifecycle", () => {
     const originalSubscribe = PersistenceRepository.prototype.subscribeRunEvents;
     const subscribeSpy = vi
       .spyOn(PersistenceRepository.prototype, "subscribeRunEvents")
-      .mockImplementation(function (this: PersistenceRepository, runId: string, listener: (event: Event) => void) {
+      .mockImplementation(function (
+        this: PersistenceRepository,
+        runId: string,
+        listener: (event: Event) => void,
+      ) {
         const stop = originalSubscribe.call(this, runId, listener);
         subscribers += 1;
         return () => {
