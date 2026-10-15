@@ -2,9 +2,9 @@ import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
+import { withAdapterOverrides } from "./__tests__/stub-adapter.js";
 import { DocumentationAdapter } from "./adapters/documentation.js";
 import { ServiceConfigAdapter } from "./adapters/service-config.js";
-import { withAdapterOverrides } from "./__tests__/stub-adapter.js";
 import { createDatabase } from "./persistence/database.js";
 import { RunEventBus } from "./persistence/event-bus.js";
 import { PersistenceRepository } from "./persistence/repository.js";
@@ -365,4 +365,3 @@ describe("WorkflowExecutor", () => {
 function createObservedPath(): string {
   return join(mkdtempSync(join(tmpdir(), "config-drift-guard-")), "observed.json");
 }
-
