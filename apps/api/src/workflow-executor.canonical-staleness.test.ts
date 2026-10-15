@@ -2,8 +2,8 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { ServiceConfigAdapter } from "./adapters/service-config.js";
 import { withAdapterOverrides } from "./__tests__/stub-adapter.js";
+import { ServiceConfigAdapter } from "./adapters/service-config.js";
 import { createDatabase, type DatabaseHandle } from "./persistence/database.js";
 import { RunEventBus } from "./persistence/event-bus.js";
 import { PersistenceRepository } from "./persistence/repository.js";
@@ -35,7 +35,7 @@ describe("WorkflowExecutor canonical-state preflight", () => {
   });
 
   it("rejects an approved plan when canonical resource identity changed", async () => {
-    const { adapter, executor, observedPath, planned, repository, runId } =
+    const { canonical, executor, observedPath, planned, repository, runId } =
       await createPlannedRun();
 
     canonical.resourceId = "replacement-service";
@@ -113,4 +113,3 @@ function expectStaleCanonicalFailure(
     status: "skipped",
   });
 }
-
