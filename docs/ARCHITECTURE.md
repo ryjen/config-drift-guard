@@ -3,42 +3,47 @@
 ## High-level structure
 
 ```text
-┌─────────────────────────────────────────────────────────┐
-│  apps/web                                               │
-│  Next.js 15 + React 19                                  │
-│  one-page operator console                              │
-│  refetches REST snapshots on SSE change notification    │
-│  no React-side state machine                            │
-└──────────────┬──────────────────────────────────────────┘
-               │ HTTP REST + SSE
-               ▼
-┌─────────────────────────────────────────────────────────┐
-│  apps/api                                                │
-│  Fastify 5                                               │
-│  loopback binding (127.0.0.1)                            │
-│  local-only CORS                                         │
-│                                                          │
-│  ├─ routes: health, environments, runs, decision, SSE    │
-│  ├─ PersistenceRepository (Drizzle + better-sqlite3)     │
-│  ├─ state-machine.ts (explicit transitions)             │
-│  ├─ workflow-executor.ts (explicit executor)            │
-│  └─ adapters/                                            │
-│       ├─ service-config.ts  (primary adapter)            │
-│       ├─ documentation.ts   (secondary adapter)          │
-│       └─ atomic-file.ts     (temp-file+atomic-rename)    │
-└──────────────┬──────────────────────────────────────────┘
-               │ pure function calls
-               ▼
-┌─────────────────────────────────────────────────────────┐
-│  packages/                                               │
-│                                                          │
-│  contracts/  (Zod schemas + TypeScript types)            │
-│  drift-engine/                                           │
-│  ├─ canonical JSON stringify + SHA-256 digests           │
-│  ├─ normalized comparison with managed-field scoping     │
-│  └─ severity policy + complete target generation          │
-└─────────────────────────────────────────────────────────┘
+apps/web  Next.js operator console
+    |
+    | REST snapshots are authoritative; SSE prompts refetch
+    v
+apps/api  Fastify HTTP boundary
+  app.ts               Fastify setup, CORS, lifecycle and route registration
+  routes/              health, environment, run, SSE, error mapping
+    |                     (narrow RunOrchestrator and event-read ports)
+    v
+  run-orchestrator.ts  run decisions and scheduling
+  workflow-executor.ts deterministic scan/reconciliation orchestration
+  state-machine.ts     pure guarded run/step transitions via RunStateStore
+    |                           |
+    | use-case/domain ports     | adapter ports
+    v                           v
+  application/ports.ts       adapters/
+    |                        service-config / documentation
+    |                              |
+    v                              v
+  container.ts              packages/drift-engine/
+    |                       pure normalized comparison and SHA-256 digests
+    | composes ONE AppDatabase and ONE RunEventBus
+    v
+  persistence/
+    environments.ts         SqliteEnvironmentRepository
+    repository.ts           SqliteRunRepository (atomic run/decision transitions)
+    events.ts               SqliteEventRepository (durable event IDs/replay)
+    event-bus.ts            in-memory live SSE notification fan-out
+
+packages/contracts/
+  Zod schemas, domain types, segregated repository interfaces, RunStateStore
+  (no Fastify, SQLite, filesystem or drift-engine dependency)
 ```
+
+## Dependency and verification boundaries
+
+- Dependency direction is inward: HTTP handlers depend on narrow use-case/event-read interfaces, orchestration depends on application/domain ports, and concrete SQLite repositories and adapters implement those ports. The application container owns construction, workflow shutdown and database lifetime.
+- Environment, run and durable event repositories share a single SQLite database handle. Multi-table approval/rejection mutations remain atomic in the run repository.
+- State-machine tests use a database-free `RunStateStore` stub. Workflow tests use `DriftAdapter` port-typed doubles for fault injection. Fastify route tests use mocked orchestrator/event ports, with no SQLite or observed-state files.
+- At the Phase 4 completion checkpoint, the canonical CI suite has **81 tests across 19 test files** (63 API, 5 contracts, 10 drift-engine, 3 web). The opt-in hosted Chromium E2E suite separately verifies 2 browser workflows.
+- Original implementation is preserved at the annotated `original-implementation` tag.
 
 ## Run statuses
 
@@ -119,7 +124,7 @@ environments ───1:N─── runs ───1:N─── steps
 - Compact event with `runId`, `version`, `eventId`, `eventType`
 - REST snapshot is authoritative; SSE only triggers refetch
 - `Last-Event-ID` replay on reconnect
-- Listener cleanup on socket close
+- Listener and heartbeat cleanup on **outgoing streaming response close** (not incoming request completion)
 
 ## Adapter contract
 

@@ -55,6 +55,7 @@ Session records and historical transcripts are in [`docs/ai/`](ai/). Transcript 
 | 24 — Database-free state machine tests (summary) | [`24-state-machine-stub-2026-10-14.md`](ai/24-state-machine-stub-2026-10-14.md) |
 | 25 — DriftAdapter test doubles (summary) | [`25-adapter-doubles-2026-10-14.md`](ai/25-adapter-doubles-2026-10-14.md) |
 | 26 — Database-free route contract tests (summary) | [`26-route-contracts-2026-10-14.md`](ai/26-route-contracts-2026-10-14.md) |
+| 27 — Clean Architecture closeout (summary) | [`27-architecture-closeout-2026-10-14.md`](ai/27-architecture-closeout-2026-10-14.md) |
 
 ## Important decisions already established
 
