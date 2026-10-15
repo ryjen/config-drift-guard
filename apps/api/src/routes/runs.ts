@@ -12,7 +12,10 @@ const decisionRequestSchema = z
   })
   .strict();
 
-export function registerRunRoutes(app: FastifyInstance, orchestrator: RunOrchestrator): void {
+export function registerRunRoutes(
+  app: FastifyInstance,
+  orchestrator: Pick<RunOrchestrator, "createRun" | "getRunSnapshot" | "approveRun" | "rejectRun">,
+): void {
   app.post<{ Params: { id: string }; Reply: RunSnapshot | ApiErrorResponse }>(
     "/api/environments/:id/runs",
     async (request, reply) => {
