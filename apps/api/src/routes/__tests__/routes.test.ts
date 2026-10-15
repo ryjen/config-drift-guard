@@ -20,7 +20,11 @@ const environment: Environment = {
   id: "env_service_config",
   name: "Test service",
   adapterKind: "service_config",
-  sourceConfig: {},
+  sourceConfig: {
+    scenario: "service-config",
+    canonicalFixture: "service-config.desired.yaml",
+    observedFixture: "service-config.observed.json",
+  },
   createdAt: timestamp,
   updatedAt: timestamp,
 };
