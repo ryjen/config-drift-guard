@@ -50,8 +50,8 @@ apps/web/                    # Next.js 15, single-page operator console ("use cl
 
 ## Testing
 
-- Tests use in-memory SQLite (`:memory:`) — no external services required.
-- 18 test files, 75 tests across the workspace at the Phase 3 completion checkpoint (57 API, 5 contracts, 10 drift-engine, 3 web).
+- Integration tests use in-memory SQLite (`:memory:`) — no external services required. State-machine unit tests use `StubRunStateStore` without SQLite; isolated Fastify route tests use mocked use-case/event ports without a database or observed-state fixture files.
+- 19 test files, 81 tests across the workspace at the Phase 4 completion checkpoint (63 API, 5 contracts, 10 drift-engine, 3 web); the separate opt-in Chromium Playwright suite contains 2 browser scenarios.
 - `apps/web` includes unit tests for SSE subscription state transitions.
 - API integration tests (`apps/api/src/app.test.ts`) exercise the full happy path including async approval + reconciliation via polling.
 - No snapshot tests, no MSW, no test containers. The opt-in `ci:e2e` label enables real Chromium Playwright coverage for trusted same-repository PRs, with bounded steps and no self-hosted runner.
