@@ -1,9 +1,9 @@
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { JsonValue } from "@config-drift-guard/contracts";
 import { afterEach, describe, expect, it } from "vitest";
 import { ServiceConfigAdapter } from "./adapters/service-config.js";
+import { withAdapterOverrides } from "./__tests__/stub-adapter.js";
 import { createDatabase, type DatabaseHandle } from "./persistence/database.js";
 import { RunEventBus } from "./persistence/event-bus.js";
 import { PersistenceRepository } from "./persistence/repository.js";
@@ -22,10 +22,10 @@ describe("WorkflowExecutor canonical-state preflight", () => {
   });
 
   it("rejects an approved plan when canonical managed state changed after plan generation", async () => {
-    const { adapter, executor, observedPath, planned, repository, runId } =
+    const { canonical, executor, observedPath, planned, repository, runId } =
       await createPlannedRun();
 
-    adapter.canonicalImage = "api:v3";
+    canonical.image = "api:v3";
     approve(repository, runId);
 
     const failed = await executor.executeReconciliation(runId);
@@ -38,7 +38,7 @@ describe("WorkflowExecutor canonical-state preflight", () => {
     const { adapter, executor, observedPath, planned, repository, runId } =
       await createPlannedRun();
 
-    adapter.canonicalResourceId = "replacement-service";
+    canonical.resourceId = "replacement-service";
     approve(repository, runId);
 
     const failed = await executor.executeReconciliation(runId);
@@ -54,14 +54,29 @@ describe("WorkflowExecutor canonical-state preflight", () => {
     const run = repository.createQueuedRun(environment.id);
     tempDir = mkdtempSync(join(tmpdir(), "config-drift-guard-canonical-staleness-"));
     const observedPath = join(tempDir, "observed.json");
-    const adapter = new MutableCanonicalAdapter(observedPath);
+    const canonical = { resourceId: "api-service", image: "api:v2" };
+    const adapter = withAdapterOverrides(new ServiceConfigAdapter(observedPath), {
+      loadCanonical: () => ({
+        resources: [
+          {
+            id: canonical.resourceId,
+            type: "service",
+            desired: {
+              image: canonical.image,
+              replicas: 3,
+              environment: { LOG_LEVEL: "info" },
+            },
+          },
+        ],
+      }),
+    });
     const executor = new WorkflowExecutor(repository, adapter);
     const planned = await executor.execute(run.id);
 
     expect(planned.run.status).toBe("awaiting_approval");
     expect(planned.plan?.target).toMatchObject({ image: "api:v2" });
 
-    return { adapter, executor, observedPath, planned, repository, runId: run.id };
+    return { canonical, executor, observedPath, planned, repository, runId: run.id };
   }
 });
 
@@ -99,23 +114,3 @@ function expectStaleCanonicalFailure(
   });
 }
 
-class MutableCanonicalAdapter extends ServiceConfigAdapter {
-  canonicalResourceId = "api-service";
-  canonicalImage = "api:v2";
-
-  override loadCanonical(): JsonValue {
-    return {
-      resources: [
-        {
-          id: this.canonicalResourceId,
-          type: "service",
-          desired: {
-            image: this.canonicalImage,
-            replicas: 3,
-            environment: { LOG_LEVEL: "info" },
-          },
-        },
-      ],
-    };
-  }
-}
