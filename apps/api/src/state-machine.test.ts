@@ -66,9 +66,7 @@ describe("run state machine (database-free)", () => {
       if (status !== "queued") {
         const store = new StubRunStateStore();
         const run = store.createRun(status);
-        expect(() => startRun(store, run.id)).toThrow(
-          `illegal_run_transition:${status}:running`,
-        );
+        expect(() => startRun(store, run.id)).toThrow(`illegal_run_transition:${status}:running`);
       }
 
       if (status !== "running") {
@@ -108,9 +106,9 @@ describe("run state machine (database-free)", () => {
 
         const convergence = new StubRunStateStore();
         const convergenceRun = convergence.createRun(status);
-        expect(() => finishReconciledRun(convergence, convergenceRun.id, "sha256:verified")).toThrow(
-          `illegal_run_transition:${status}:succeeded`,
-        );
+        expect(() =>
+          finishReconciledRun(convergence, convergenceRun.id, "sha256:verified"),
+        ).toThrow(`illegal_run_transition:${status}:succeeded`);
       }
     }
 
