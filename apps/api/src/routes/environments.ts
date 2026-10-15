@@ -9,7 +9,7 @@ const emptyRequestSchema = z.object({}).strict();
 
 export function registerEnvironmentRoutes(
   app: FastifyInstance,
-  orchestrator: RunOrchestrator,
+  orchestrator: Pick<RunOrchestrator, "listEnvironments" | "resetEnvironment">,
 ): void {
   app.get<{ Reply: Environment[] }>("/api/environments", async () =>
     orchestrator.listEnvironments(),
