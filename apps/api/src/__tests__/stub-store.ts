@@ -1,9 +1,4 @@
-import type {
-  Run,
-  RunStateStore,
-  RunStatus,
-  WorkflowStepKey,
-} from "@config-drift-guard/contracts";
+import type { Run, RunStateStore, RunStatus, WorkflowStepKey } from "@config-drift-guard/contracts";
 
 type RunUpdate = Parameters<RunStateStore["updateRunState"]>[1];
 type StepUpdate = Parameters<RunStateStore["updateStepState"]>[2];
