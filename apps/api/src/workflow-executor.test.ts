@@ -1,8 +1,8 @@
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { JsonValue } from "@config-drift-guard/contracts";
 import { describe, expect, it, vi } from "vitest";
+import { withAdapterOverrides } from "./__tests__/stub-adapter.js";
 import { DocumentationAdapter } from "./adapters/documentation.js";
 import { ServiceConfigAdapter } from "./adapters/service-config.js";
 import { createDatabase } from "./persistence/database.js";
@@ -238,7 +238,11 @@ describe("WorkflowExecutor", () => {
     const environment = repository.seedServiceConfigEnvironment();
     const run = repository.createQueuedRun(environment.id);
     const observedPath = createObservedPath();
-    const adapter = new InvalidCanonicalAdapter(observedPath);
+    const adapter = withAdapterOverrides(new ServiceConfigAdapter(observedPath), {
+      loadCanonical: () => ({
+        resources: [{ id: "api-service", type: "service", desired: { replicas: -1 } }],
+      }),
+    });
 
     const failed = await new WorkflowExecutor(repository, adapter).execute(run.id);
 
@@ -289,7 +293,11 @@ describe("WorkflowExecutor", () => {
     const environment = repository.seedServiceConfigEnvironment();
     const run = repository.createQueuedRun(environment.id);
     const observedPath = createObservedPath();
-    const adapter = new AtomicFailureAdapter(observedPath);
+    const adapter = withAdapterOverrides(new ServiceConfigAdapter(observedPath), {
+      applyTarget: () => {
+        throw new Error("simulated_atomic_write_failure");
+      },
+    });
     const executor = new WorkflowExecutor(repository, adapter);
 
     await executor.execute(run.id);
@@ -321,7 +329,13 @@ describe("WorkflowExecutor", () => {
     const environment = repository.seedServiceConfigEnvironment();
     const run = repository.createQueuedRun(environment.id);
     const observedPath = createObservedPath();
-    const adapter = new VerificationMismatchAdapter(observedPath);
+    const adapter = withAdapterOverrides(new ServiceConfigAdapter(observedPath), {
+      applyTarget: () => ({
+        observedDigestBefore: "sha256:before",
+        observedDigestAfter: "sha256:after",
+        targetDigest: "sha256:target",
+      }),
+    });
     const executor = new WorkflowExecutor(repository, adapter);
 
     await executor.execute(run.id);
@@ -350,26 +364,4 @@ describe("WorkflowExecutor", () => {
 
 function createObservedPath(): string {
   return join(mkdtempSync(join(tmpdir(), "config-drift-guard-")), "observed.json");
-}
-
-class InvalidCanonicalAdapter extends ServiceConfigAdapter {
-  override loadCanonical(): JsonValue {
-    return { resources: [{ id: "api-service", type: "service", desired: { replicas: -1 } }] };
-  }
-}
-
-class AtomicFailureAdapter extends ServiceConfigAdapter {
-  override applyTarget(): ReturnType<ServiceConfigAdapter["applyTarget"]> {
-    throw new Error("simulated_atomic_write_failure");
-  }
-}
-
-class VerificationMismatchAdapter extends ServiceConfigAdapter {
-  override applyTarget(): ReturnType<ServiceConfigAdapter["applyTarget"]> {
-    return {
-      observedDigestBefore: "sha256:before",
-      observedDigestAfter: "sha256:after",
-      targetDigest: "sha256:target",
-    };
-  }
 }

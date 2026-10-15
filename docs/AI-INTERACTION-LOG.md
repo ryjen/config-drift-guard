@@ -53,6 +53,7 @@ Session records and historical transcripts are in [`docs/ai/`](ai/). Transcript 
 | 22 — Repository port segregation (summary) | [`22-repository-ports-phase3a-2026-10-13.md`](ai/22-repository-ports-phase3a-2026-10-13.md) |
 | 23 — SQLite repository extraction (summary) | [`23-sqlite-repositories-phase3b-2026-10-13.md`](ai/23-sqlite-repositories-phase3b-2026-10-13.md) |
 | 24 — Database-free state machine tests (summary) | [`24-state-machine-stub-2026-10-14.md`](ai/24-state-machine-stub-2026-10-14.md) |
+| 25 — DriftAdapter test doubles (summary) | [`25-adapter-doubles-2026-10-14.md`](ai/25-adapter-doubles-2026-10-14.md) |
 
 ## Important decisions already established
 
