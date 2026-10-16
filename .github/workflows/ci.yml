@@ -39,4 +39,18 @@ jobs:
       - name: Browser E2E (opt-in)
         if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'ci:e2e')
         timeout-minutes: 5
+        env:
+          CONFIG_DRIFT_GUARD_DEMO_CAPTURE: ${{ contains(github.event.pull_request.labels.*.name, 'ci:demo-capture') && '1' || '0' }}
         run: pnpm test:e2e
+
+      # Store actual synthetic browser footage only after an explicit two-label
+      # opt-in from a same-repository PR. Never publish it as a finished demo.
+      - name: Upload raw browser captures (opt-in)
+        if: success() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'ci:e2e') && contains(github.event.pull_request.labels.*.name, 'ci:demo-capture')
+        uses: actions/upload-artifact@v4
+        with:
+          name: config-drift-guard-raw-browser-captures
+          path: test-results/**/video.webm
+          if-no-files-found: error
+          retention-days: 3
+          compression-level: 0
