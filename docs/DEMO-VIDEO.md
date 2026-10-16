@@ -33,6 +33,19 @@
 
 **Editing note:** Take two clips if the sequence cannot be completed cleanly in 90 seconds; label the reset/second scenario transition in the caption. Do not splice together results in a way that suggests a single uninterrupted run or hide a failed check.
 
+## Optional authentic browser capture in CI
+
+This is an **internal PR-only, opt-in diagnostic recording** of the actual Playwright test scenarios. It is not a narrated portfolio video, is not automatically released, and should not be presented as a continuous operator walkthrough. The two Playwright cases use synthetic fixtures and produce separate raw WebM clips **plus genuine browser screenshots at six state milestones**. Raw Playwright WebM may be too short to communicate the full workflow; measure duration and inspect the screenshots before calling this a useful capture.
+
+1. From a trusted **same-repository** pull request, add both `ci:e2e` and `ci:demo-capture` labels.
+2. Trigger a `synchronize` pull-request event **after** adding the labels (for example, by pushing a reviewed change). Labels alone do not start the configured workflow. Fork PRs are never permitted to record.
+3. Ensure `pnpm check`, `Install Chromium (opt-in E2E)`, `Browser E2E (opt-in)`, and `Upload raw browser captures (opt-in)` all succeed at the **same exact candidate SHA**.
+4. Inspect the `config-drift-guard-raw-browser-captures` artifact from the matching GitHub Actions run. Confirm all six `milestone-*.png` screenshots show actual browser states and separately measure WebM dimensions/duration. It expires after three days. **Treat artifacts from a public repository as potentially public**, even though the only browser content should be locally seeded demo fixtures.
+5. Review the two clips for truthful state transitions, legibility, unexpected data, and source provenance. Do not call them a finished 75–90-second demo or claim they have narration, editing or owner approval.
+6. To produce a public portfolio video, record/assemble an owner-reviewed final cut with captions, explicit test-footage/source identification, links and rights review; publish only with owner approval.
+
+The opt-in setting `CONFIG_DRIFT_GUARD_DEMO_CAPTURE=1` enables Playwright's real Chromium video capture, milestone screenshots, and slower fixture transitions **only during that job**; default test behavior is unchanged. No third-party video generation, AI-simulated UI, permanent hosted artifact, or production connection is involved.
+
 ## Publication checklist
 
 - [ ] Record locally from the exact reviewed revision; retain source video privately until approved.
