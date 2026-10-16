@@ -58,6 +58,7 @@ Session records and historical transcripts are in [`docs/ai/`](ai/). Transcript 
 | 27 — Clean Architecture closeout (summary) | [`27-architecture-closeout-2026-10-14.md`](ai/27-architecture-closeout-2026-10-14.md) |
 | 28 — Opt-in browser recording proposal (summary) | [`28-opt-in-browser-capture-2026-10-16.md`](ai/28-opt-in-browser-capture-2026-10-16.md) |
 | 29 — Locked dependency/license evidence (summary) | [`29-dependency-license-inventory-2026-10-16.md`](ai/29-dependency-license-inventory-2026-10-16.md) |
+| 30 — Registry cross-check and unpublished media QA (summary) | [`30-registry-crosscheck-demo-qa-2026-10-16.md`](ai/30-registry-crosscheck-demo-qa-2026-10-16.md) |
 
 ## Important decisions already established
 
