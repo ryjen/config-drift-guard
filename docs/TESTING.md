@@ -1,10 +1,10 @@
 # Browser end-to-end tests
 
-Issue: [#10](https://github.com/ryjen/config-drift-guard/issues/10), with the terminal-stream acceptance criteria tracked in [#7](https://github.com/ryjen/config-drift-guard/issues/7).
+Historical implementation issues: [#10](https://github.com/ryjen/config-drift-guard/issues/10) (closed) and terminal-stream [#7](https://github.com/ryjen/config-drift-guard/issues/7) (closed). These issue states do not certify every future revision or native workstation environment.
 
-## Run
+## Run with a reproducible browser runtime
 
-## NixOS / reproducible browser runtime (x86_64-linux)
+### NixOS / reproducible browser runtime (x86_64-linux)
 
 Use the repo's `flake.nix` for Node 24, Corepack, and Nix-packaged
 Chromium. Its nixpkgs input is pinned to the revision whose
@@ -44,14 +44,14 @@ bootstrap successfully ran `nix flake lock`, `nix flake show`, and
 three-component browser closure, matching the locked Playwright 1.56.1
 runtime. GitHub Actions `pnpm check` passed at the lockfile commit.
 
-**Browser qualification remains open:** The connected Desktop Commander
+**Native NixOS browser qualification on the connected Desktop Commander host remains unverified:** The connected Desktop Commander
 environment does not expose the host Nix installation or permit user
 namespaces. Nix-portable fell back to `proot`; Next.js workers and the
 Chromium smoke process crashed with `double free or corruption` while
 executing inside that emulation. Those crashes do not prove an
 application or native Nix browser defect. Execute `nix develop -c
 corepack pnpm test:e2e` on a trusted host with **native Nix**, record
-the exact PR SHA and Playwright traces, and only then close #7/#10.
+the exact candidate SHA and Playwright traces as **new native-host evidence**. Issues #7 and #10 are already closed and do not depend on this host-specific check.
 
 Use Node 24 and pnpm 10.13.1 in a Linux environment supported by Playwright Chromium:
 
@@ -81,8 +81,7 @@ job after `pnpm check`. Browser installation and the E2E step each have
 a five-minute timeout. The gate never executes for fork PRs; the
 workflow retains read-only contents permissions. No additional CI job
 is provisioned, and unlabelled PRs do not download browser runtimes.
-A branch push or other supported PR CI trigger is required after
-labelling.
+The workflow uses default `pull_request` event types: **labelling alone does not trigger a new job**. Push a reviewed branch update or otherwise initiate a supported PR event after assigning `ci:e2e`, then verify the exact-head browser steps rather than relying on the label's presence.
 
 **Evidence (2026-10-12):** On the hosted Ubuntu runner, PR #18's
 temporary qualification workflow passed both Chromium scenarios in
@@ -94,6 +93,8 @@ condition, so its own exact-head CI must be qualified separately.
 
 ## Limitations / runner contract
 
+**Latest portfolio checkpoint (2026-10-16):** Merge commit `31c05ebf295bd9b1a83253424b2ee1c1e0fdb47e` passed the `check` context. That context is **not evidence of browser E2E**, because the `ci:e2e` opt-in is unavailable on the ordinary `main` push. The historical hosted browser run remains tied to its earlier candidate; capture new exact-revision browser evidence before attributing E2E success to the portfolio recording.
+
 The E2E suite is **separate from `pnpm check`**. The existing GitHub-hosted CI job runs it only when a trusted same-repository PR carries `ci:e2e`; it is not a default required job for other PRs. Qualify changes on a trusted Chromium-capable runner with the label rather than exposing personal self-hosted runners to untrusted changes. Do not route untrusted fork PR code to a personal self-hosted runner. Keep browser downloads and temporary fixtures outside protected host paths.
 
-The initial attempted run on the NixOS Desktop Commander host failed to spawn Playwright's downloaded Ubuntu Chromium executable (`ENOENT`, runtime-loader incompatibility); this is **not** browser-test success or an app regression. Build and existing unit/integration tests passed independently. Record successful browser evidence, including the exact git head, before resolving issue #7 or #10.
+The initial attempted run on the NixOS Desktop Commander host failed to spawn Playwright's downloaded Ubuntu Chromium executable (`ENOENT`, runtime-loader incompatibility); this is **not** browser-test success or an app regression. Build and existing unit/integration tests passed independently. Record successful browser evidence, including the exact git head, before claiming that a new revision was qualified in the browser. Both implementation issues are already closed.
