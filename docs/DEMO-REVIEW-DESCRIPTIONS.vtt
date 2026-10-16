@@ -1,0 +1,34 @@
+WEBVTT
+
+NOTE
+Descriptive text for an unpublished silent editorial compilation of real
+Chromium automated tests, not a transcript of spoken words.
+Timings are referenced to config-drift-guard-demo-review-cut.mp4 SHA-256:
+1bf068588d03365b1e423409d349140fdc1b352ed3ad068150c0dae8c12cd63a
+
+00:00:00.000 --> 00:00:06.000
+Config Drift Guard: synthetic browser-test evidence. This is an edited silent review draft, not a live production deployment.
+
+00:00:06.000 --> 00:00:14.000
+The operator console begins from a known seeded local configuration.
+
+00:00:14.000 --> 00:00:26.450
+A genuine Chromium test runs a drift scan, presents the findings, and exercises approval-gated reconciliation.
+
+00:00:26.450 --> 00:00:36.450
+The verified test reports successful reconciliation and no remaining drift findings.
+
+00:00:36.450 --> 00:00:45.450
+A second test prepares a new remediation plan, then changes the observed configuration before approval.
+
+00:00:45.450 --> 00:01:01.150
+Preflight detects the stale plan and refuses reconciliation. Apply and verification are skipped; the altered observed fixture is preserved.
+
+00:01:01.150 --> 00:01:13.150
+The actual browser state shows the failed preflight and skipped write/verify steps.
+
+00:01:13.150 --> 00:01:21.150
+A subsequent browser test demonstrates the operator rejecting a fresh plan.
+
+00:01:21.150 --> 00:01:27.150
+Source and test-run details are shown. Public release, licensing and final owner approval remain pending.
