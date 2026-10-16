@@ -3,6 +3,10 @@ import { resolve } from "node:path";
 import { test as base, expect } from "@playwright/test";
 
 const apiUrl = "http://127.0.0.1:4000";
+const demoCaptureEnabled = process.env.CONFIG_DRIFT_GUARD_DEMO_CAPTURE === "1";
+const ordinaryDelay = { queueMs: "200", phaseMs: "60" } as const;
+const recordedDelay = { queueMs: "500", phaseMs: "650" } as const;
+const selectedDelay = demoCaptureEnabled ? recordedDelay : ordinaryDelay;
 
 async function waitForOwnApi(child: ReturnType<typeof spawn>): Promise<void> {
   await new Promise<void>((resolveReady, rejectReady) => {
@@ -45,8 +49,8 @@ export const test = base.extend<{ apiServer: undefined }>({
           PORT: "4000",
           CONFIG_DRIFT_GUARD_DB: ":memory:",
           CONFIG_DRIFT_GUARD_OBSERVED_STATE: "data/e2e-service.observed.json",
-          QUEUE_DELAY_MS: "200",
-          PHASE_DELAY_MS: "60",
+          QUEUE_DELAY_MS: selectedDelay.queueMs,
+          PHASE_DELAY_MS: selectedDelay.phaseMs,
         },
         stdio: ["ignore", "pipe", "pipe"],
       });
