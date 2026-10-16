@@ -15,7 +15,7 @@ export default defineConfig({
     baseURL: webUrl,
     trace: "retain-on-failure",
     // Recording is disabled unless explicitly opted in by an authorized internal PR.
-    video: demoCaptureEnabled ? "on" : "off",
+    video: demoCaptureEnabled ? { mode: "on", size: { width: 1280, height: 720 } } : "off",
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {
