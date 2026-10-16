@@ -46,6 +46,10 @@ This is an **internal PR-only, opt-in diagnostic recording** of the actual Playw
 
 The opt-in setting `CONFIG_DRIFT_GUARD_DEMO_CAPTURE=1` enables Playwright's real Chromium video capture, milestone screenshots, and slower fixture transitions **only during that job**; default test behavior is unchanged. No third-party video generation, AI-simulated UI, permanent hosted artifact, or production connection is involved.
 
+## Current unpublished review-cut evidence
+
+An edited silent draft made from the real synthetic Chromium test captures exists **outside the repository**. The exact [cut integrity and limited QA report](DEMO-REVIEW-QUALITY.md), [nine-cue descriptive subtitle draft](DEMO-REVIEW-DESCRIPTIONS.vtt), and [version-pinned npm license-metadata inventory](DEPENDENCY-LICENSE-METADATA.md) support the pending review. These are *not* evidence of approved publication or license clearance; the binaries are not committed. See [#39](https://github.com/ryjen/config-drift-guard/issues/39) for owner approval and [#34](https://github.com/ryjen/config-drift-guard/issues/34) for rights decisions.
+
 ## Publication checklist
 
 - [ ] Record locally from the exact reviewed revision; retain source video privately until approved.
