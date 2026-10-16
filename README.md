@@ -52,6 +52,8 @@ The API defaults to `http://127.0.0.1:4000` and the web app defaults to `http://
 
 See [docs/DEMO.md](docs/DEMO.md) for the full walkthrough including failure paths.
 
+For an **unrecorded** 75–90-second portfolio walkthrough, see [the screen-recording storyboard](docs/DEMO-VIDEO.md). It includes the approval flow, stale-plan rejection, preparation/reset steps, and recording safety notes; it is not a completed demo video.
+
 ## Product model
 
 ```text
