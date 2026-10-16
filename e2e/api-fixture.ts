@@ -49,6 +49,8 @@ export const test = base.extend<{ apiServer: undefined }>({
           PORT: "4000",
           CONFIG_DRIFT_GUARD_DB: ":memory:",
           CONFIG_DRIFT_GUARD_OBSERVED_STATE: "data/e2e-service.observed.json",
+          // The server only wires pacing hooks when DEMO_MODE is explicitly enabled.
+          DEMO_MODE: demoCaptureEnabled ? "1" : "0",
           QUEUE_DELAY_MS: selectedDelay.queueMs,
           PHASE_DELAY_MS: selectedDelay.phaseMs,
         },
