@@ -56,6 +56,7 @@ Session records and historical transcripts are in [`docs/ai/`](ai/). Transcript 
 | 25 — DriftAdapter test doubles (summary) | [`25-adapter-doubles-2026-10-14.md`](ai/25-adapter-doubles-2026-10-14.md) |
 | 26 — Database-free route contract tests (summary) | [`26-route-contracts-2026-10-14.md`](ai/26-route-contracts-2026-10-14.md) |
 | 27 — Clean Architecture closeout (summary) | [`27-architecture-closeout-2026-10-14.md`](ai/27-architecture-closeout-2026-10-14.md) |
+| 28 — Opt-in browser recording proposal (summary) | [`28-opt-in-browser-capture-2026-10-16.md`](ai/28-opt-in-browser-capture-2026-10-16.md) |
 
 ## Important decisions already established
 
