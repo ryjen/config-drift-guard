@@ -1,6 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const webUrl = "http://127.0.0.1:3000";
+const demoCaptureEnabled = process.env.CONFIG_DRIFT_GUARD_DEMO_CAPTURE === "1";
 
 export default defineConfig({
   testDir: "./e2e",
@@ -13,6 +14,8 @@ export default defineConfig({
   use: {
     baseURL: webUrl,
     trace: "retain-on-failure",
+    // Recording is disabled unless explicitly opted in by an authorized internal PR.
+    video: demoCaptureEnabled ? "on" : "off",
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {
