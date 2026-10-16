@@ -1,6 +1,6 @@
 # Portfolio demo storyboard (75–90 seconds)
 
-**State:** Recording plan only. No video, captions, screen capture, or verified recording artifact has been produced. The [full hands-on walkthrough](DEMO.md) remains the authoritative source for app behavior and reset commands.
+**State:** This storyboard describes a possible owner-operated recording; **no continuous manual recording or approved public release exists**. A separate **silent edited internal review cut** has been assembled from genuine Chromium test recordings and screenshots. Its [integrity/QA report](DEMO-REVIEW-QUALITY.md) and [descriptive WebVTT draft](DEMO-REVIEW-DESCRIPTIONS.vtt) do not constitute owner publication approval. The [full hands-on walkthrough](DEMO.md) remains the source for reproducible demo behavior.
 
 **Audience:** Staff/platform hiring managers and reviewers evaluating deterministic reconciliation, approval boundaries and failure behavior. **Scope:** local, synthetic service-configuration adapter; not a connection to production systems, cloud resources or real infrastructure.
 
@@ -45,6 +45,10 @@ This is an **internal PR-only, opt-in diagnostic recording** of the actual Playw
 6. To produce a public portfolio video, record/assemble an owner-reviewed final cut with captions, explicit test-footage/source identification, links and rights review; publish only with owner approval.
 
 The opt-in setting `CONFIG_DRIFT_GUARD_DEMO_CAPTURE=1` enables Playwright's real Chromium video capture, milestone screenshots, and slower fixture transitions **only during that job**; default test behavior is unchanged. No third-party video generation, AI-simulated UI, permanent hosted artifact, or production connection is involved.
+
+## Current evidence and rights context
+
+The unpublished review cut has [measured integrity and limited visual QA](DEMO-REVIEW-QUALITY.md) and a [nine-cue silent descriptive track](DEMO-REVIEW-DESCRIPTIONS.vtt). For dependency provenance, see the [reproducible locally installed-manifest audit](provenance/dependency-license-inventory-2026-10-16.md) and [supplementary exact-version npm registry declarations](provenance/npm-registry-license-metadata-2026-10-16.md). Those reports are **metadata evidence only**, not license grants or notice compliance. [Issue #39](https://github.com/ryjen/config-drift-guard/issues/39) owns final review and release; [#34](https://github.com/ryjen/config-drift-guard/issues/34) owns rights and license decisions.
 
 ## Publication checklist
 
