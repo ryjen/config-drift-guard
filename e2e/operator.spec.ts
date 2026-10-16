@@ -12,7 +12,7 @@ const DEMO_HOLD_MS = 1200;
 async function captureMilestone(page: Page, testInfo: TestInfo, name: string): Promise<void> {
   if (!captureMilestonesEnabled) return;
   await page.screenshot({
-    path: testInfo.outputPath("milestone-" + name + ".png"),
+    path: testInfo.outputPath(`milestone-${name}.png`),
     fullPage: true,
   });
   // Viewer pacing is separate from normal test assertions.
@@ -74,7 +74,9 @@ test.beforeEach(async ({ request }) => {
   expect(reset.status()).toBe(200);
 });
 
-test("browser scan, approval, verification and terminal SSE cleanup", async ({ page }, testInfo) => {
+test("browser scan, approval, verification and terminal SSE cleanup", async ({
+  page,
+}, testInfo) => {
   await instrumentSse(page);
   await page.goto("/");
   await captureMilestone(page, testInfo, "01-initial");
