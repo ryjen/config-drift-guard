@@ -4,7 +4,7 @@ Config Drift Guard is a small internal-platform control plane that detects diffe
 
 It models drift analysis as an explicit, persisted workflow so operators can initiate a run, observe each stage, inspect evidence and findings, review an immutable remediation plan, approve or reject reconciliation, and verify the resulting state.
 
-![Config Drift Guard operator console](docs/images/operator-console.png)
+The operator console runs locally; see the [five-minute demo](docs/DEMO.md) for the walkthrough.
 
 ## Status
 
