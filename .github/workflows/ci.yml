@@ -50,7 +50,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: config-drift-guard-raw-browser-captures
-          path: test-results/**/video.webm
+          path: |
+            test-results/**/video.webm
+            test-results/**/milestone-*.png
           if-no-files-found: error
           retention-days: 3
           compression-level: 0
