@@ -7,7 +7,7 @@
 ## Preparation
 
 1. Use an isolated checkout at a known commit. Keep only fixture data in the working tree; close terminals showing tokens, personal paths, email, hostnames or unrelated services.
-2. Run `corepack pnpm install` and `corepack pnpm check` before recording. Save the exact commit SHA and test result with the video description. Do **not** claim checks passed unless actually observed.
+2. Run `corepack pnpm install --frozen-lockfile` and `corepack pnpm check` before recording. Save the exact commit SHA and test result with the video description. Do **not** claim checks passed unless actually observed. **`pnpm check` does not include Chromium browser E2E**; if describing browser automated acceptance, also execute `pnpm test:e2e` with the [documented supported runtime](TESTING.md) and keep its separate exact-revision result.
 3. Start `corepack pnpm demo`. The web UI uses `http://127.0.0.1:3000` and the API uses `http://127.0.0.1:4000` by default.
 4. Use the seeded **Service configuration drift** scenario. Reset state between takes and before the failure demo:
 
