@@ -81,8 +81,7 @@ job after `pnpm check`. Browser installation and the E2E step each have
 a five-minute timeout. The gate never executes for fork PRs; the
 workflow retains read-only contents permissions. No additional CI job
 is provisioned, and unlabelled PRs do not download browser runtimes.
-A branch push or other supported PR CI trigger is required after
-labelling.
+The workflow uses default `pull_request` event types: **labelling alone does not trigger a new job**. Push a reviewed branch update or otherwise initiate a supported PR event after assigning `ci:e2e`, then verify the exact-head browser steps rather than relying on the label's presence.
 
 **Evidence (2026-10-12):** On the hosted Ubuntu runner, PR #18's
 temporary qualification workflow passed both Chromium scenarios in
