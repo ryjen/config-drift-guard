@@ -1,11 +1,23 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import type { Page } from "@playwright/test";
+import type { Page, TestInfo } from "@playwright/test";
 import { expect, test } from "./api-fixture";
 
 const apiUrl = "http://127.0.0.1:4000";
 const environment = "env_service_config";
 const observedPath = resolve("apps/api/data/e2e-service.observed.json");
+const captureMilestonesEnabled = process.env.CONFIG_DRIFT_GUARD_DEMO_CAPTURE === "1";
+const DEMO_HOLD_MS = 1200;
+
+async function captureMilestone(page: Page, testInfo: TestInfo, name: string): Promise<void> {
+  if (!captureMilestonesEnabled) return;
+  await page.screenshot({
+    path: testInfo.outputPath("milestone-" + name + ".png"),
+    fullPage: true,
+  });
+  // Viewer pacing is separate from normal test assertions.
+  await page.waitForTimeout(DEMO_HOLD_MS);
+}
 
 type SseProbe = { sources: Array<{ closeCalls: number }> };
 
@@ -62,13 +74,16 @@ test.beforeEach(async ({ request }) => {
   expect(reset.status()).toBe(200);
 });
 
-test("browser scan, approval, verification and terminal SSE cleanup", async ({ page }) => {
+test("browser scan, approval, verification and terminal SSE cleanup", async ({ page }, testInfo) => {
   await instrumentSse(page);
   await page.goto("/");
+  await captureMilestone(page, testInfo, "01-initial");
   await scanToApproval(page);
+  await captureMilestone(page, testInfo, "02-awaiting-approval");
   await expect(page.getByText("Progress connection: live")).toBeVisible();
   await page.getByRole("button", { name: "Approve reconcile" }).click();
   await expect(page.locator(".statusPill")).toHaveText("succeeded");
+  await captureMilestone(page, testInfo, "03-verified-convergence");
   await expectNoSseLeak(page);
 
   const resource = JSON.parse(readFileSync(observedPath, "utf8")) as {
@@ -82,10 +97,11 @@ test("browser scan, approval, verification and terminal SSE cleanup", async ({ p
 test("browser stale-plan failure keeps observed state and recovers with a new run", async ({
   page,
   request,
-}) => {
+}, testInfo) => {
   await instrumentSse(page);
   await page.goto("/");
   await scanToApproval(page);
+  await captureMilestone(page, testInfo, "04-stale-plan-before-change");
   const observed = JSON.parse(readFileSync(observedPath, "utf8")) as {
     "api-service": { image: string };
   };
@@ -94,6 +110,7 @@ test("browser stale-plan failure keeps observed state and recovers with a new ru
 
   await page.getByRole("button", { name: "Approve reconcile" }).click();
   await expect(page.locator(".statusPill")).toHaveText("failed");
+  await captureMilestone(page, testInfo, "05-stale-rejected");
   await expectNoSseLeak(page);
   const afterFailure = JSON.parse(readFileSync(observedPath, "utf8")) as {
     "api-service": { image: string };
@@ -107,5 +124,6 @@ test("browser stale-plan failure keeps observed state and recovers with a new ru
   await scanToApproval(page);
   await page.getByRole("button", { name: "Reject plan" }).click();
   await expect(page.locator(".statusPill")).toHaveText("rejected");
+  await captureMilestone(page, testInfo, "06-operator-reject");
   await expectNoSseLeak(page);
 });
