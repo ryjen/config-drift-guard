@@ -42,6 +42,15 @@ class AdmissionRulesetTests(unittest.TestCase):
                                       require_original_timestamp=True), []
         )
 
+    def test_anonymous_provider_redaction_does_not_qualify_baseline(self) -> None:
+        item = observed(checker.BASELINE)
+        item.pop("bypass_actors")  # GitHub's public API may omit sensitive bypass metadata.
+        self.assertIn(
+            "observed provider ruleset differs from expected policy",
+            checker.validate_observed(item, checker.BASELINE,
+                                      require_original_timestamp=True),
+        )
+
     def test_previous_unscoped_admin_bypass_rejected_after_activation(self) -> None:
         result = checker.validate_observed(
             observed(checker.BASELINE), proposal(), require_original_timestamp=False
