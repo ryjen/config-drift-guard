@@ -1,8 +1,8 @@
 # GitHub main admission activation — issue #43
 
-**Status (2026-10-17): proposal prepared; GitHub admission is NOT activated.** This document does not enforce the rules simply by existing in the repository. Follow it from a trusted operator host with authenticated `gh`, after its PR and read-only preflight checks pass. Never use a model, CI job, or repository write token as a substitute for authorized ruleset administration.
+**Status (2026-10-17): provider admission ACTIVE and failing-check rejection VERIFIED.** Ruleset `18793052` requires pull requests and strict source-pinned `check` for `main`, with no ambient bypass. [Disposable PR #45](https://github.com/ryjen/config-drift-guard/pull/45) produced a failed required `check` and GitHub reported `mergeable_state: blocked`; it was closed unmerged and its branch deleted. The old **baseline/activation PUT below is historical and must NOT be replayed** now that the policy is active. For routine inspection use the **read-only `--mode active`** verification in step 3. See [issue #43 evidence](https://github.com/ryjen/config-drift-guard/issues/43#issuecomment-6244761893).
 
-## Exact provider baseline and binding
+## Historical provider baseline and binding (before activation)
 
 - Repository: `ryjen/config-drift-guard`, default branch `main`; live main SHA on inspection `36286b4e489b3ac424fb3d2ab85f1925e8f47206`.
 - Active default branch ruleset [ID 18793052](https://github.com/ryjen/config-drift-guard/rules/18793052), source `ryjen/config-drift-guard`; target `branch`; `~DEFAULT_BRANCH`, enforcement `active`.
@@ -12,18 +12,30 @@
 - Required check source: **GitHub Actions App, integration ID 15368**, independently observed on successful `main` check-run [117239252802](https://github.com/ryjen/config-drift-guard/actions/runs/38980276862/job/117239252802), commit `36286b4e489b3ac424fb3d2ab85f1925e8f47206`.
 - Classic branch-protection API alone reports no required status checks; the effective ruleset API on inspection lists only deletion/non-fast-forward. A workflow reporting success does **not** imply provider-required admission.
 
-The proposal [`examples/provider-admission/main.ruleset.json`](../../examples/provider-admission/main.ruleset.json) retains the existing deletion and force-push restrictions, and adds:
+The reviewed [`examples/provider-admission/main.ruleset.json`](../../examples/provider-admission/main.ruleset.json) was applied to that historical baseline. It preserves deletion and force-push restrictions and now requires:
 
 1. **Require pull requests** and resolved review conversations. Retain all three allowed repository merge methods.
 2. **Require the source-pinned `check` context** (`integration_id: 15368`), with strict current-base freshness.
 3. **Remove `always` bypass actors.** Admin ability to edit provider rulesets remains a separate privileged control-plane operation.
 4. **Require zero mandatory approving GitHub reviews.** This is intentionally compatible with the solo maintainer; it does *not* prove human reviewer independence. Accountable review is still a policy requirement; reconsider a mandatory reviewer only when an eligible independent reviewer exists.
 
-No GitHub automation/CI, application reconciliation logic, or production runtime permissions are changed by the proposed ruleset payload.
+The provider change did not alter GitHub workflow code, application reconciliation behavior or production runtime permissions.
 
-## Operator sequence — inspect, guard, activate, observe
+## Activated provider observation and bounded proof (2026-10-17)
 
-Use a trusted clone of the **reviewed and merged** main revision containing this file, script and candidate JSON. Check `gh auth status` and repository admin permission. **A truly authenticated provider readback is required:** anonymous GitHub API responses can omit `bypass_actors` altogether, which makes the verifier intentionally fail its baseline comparison. Do not treat that redacted public result as `bypass_actors: []`, and do not remove a guard to make it pass. The connected read-only GitHub integration can inspect policy but **cannot perform ruleset PUT**. Never copy a token into logs, issues or terminals.
+- **Ruleset readback:** `updated_at: 2026-10-17T19:26:01.079-07:00`, `enforcement=active`, source `ryjen/config-drift-guard`, `~DEFAULT_BRANCH`; `bypass_actors=[]`, `current_user_can_bypass=never`.
+- **Effective `main` rules:** `deletion`, `non_fast_forward`, `pull_request`, `required_status_checks`; strict current-base `check` from GitHub Actions integration `15368`; zero required approving reviews, review threads must resolve.
+- **Real rejection:** normal [PR #45](https://github.com/ryjen/config-drift-guard/pull/45), base `8acdf920f84c37387359576f8f488c254b9f0dac`, head `cdd78c4458c324f6ce5f8274e72bb6537e5c9e1a`, added only a deliberately failing Vitest file. [Run 39090210545](https://github.com/ryjen/config-drift-guard/actions/runs/39090210545) and required `check` job `117565165464` completed **failure** with the expected assertion at `apps/api/src/admission-negative-check-43.test.ts:7`.
+- **Admission result:** authenticated GitHub PR readback after the failure showed `mergeable=true` (no Git conflict), but **`mergeable_state=blocked`**. PR closed **unmerged**; SHA-guarded deletion removed disposable branch `test/admission-negative-check-43-20261017`, verified absent via GitHub ref 404. Protected `main` was not modified by this test.
+- **Limitations:** Missing-required-check and direct-push scenarios were not separately tested. An administrator can still edit ruleset settings in the provider control plane. GitHub PR checks generally run against a synthetic merge ref; a later squash commit has distinct post-merge validation identity. The zero-review-count rule avoids solo-maintainer deadlock but is not evidence of independent human review.
+
+The [issue #43 evidence record](https://github.com/ryjen/config-drift-guard/issues/43#issuecomment-6244761893) contains the full observations. A green CI check or repository-local checker success **alone** would not have established this behavior.
+
+## Historical activation operator sequence — completed; do not replay
+
+**Do not run historical steps 1–2 to reactivate the already-active ruleset.** The original `updated_at` baseline is intentionally obsolete; `--mode baseline` must now fail. The commands document the guarded transition for audit and are **not reusable** for later ruleset edits. For future policy changes, create a new proposal and baseline, with accountable admin review and a fresh read-check/write guard.
+
+At the time of initial activation, the operator used a trusted clone of the reviewed `main` containing this file, checker and payload, and verified `gh auth status` and repository administration access. **A truly authenticated provider readback is required:** anonymous GitHub API responses can omit `bypass_actors` altogether, which makes the verifier intentionally fail its baseline comparison. Do not treat that redacted public result as `bypass_actors: []`, and do not remove a guard to make it pass. The connected read-only GitHub integration can inspect policy but **cannot perform ruleset PUT**. Never copy a token into logs, issues or terminals.
 
 ### 1. Read-only source and baseline validation
 
@@ -45,7 +57,7 @@ The checker validates repository identity, original timestamp as an offset-aware
 
 ### 2. Apply through a separately authorized administrator (one mutation)
 
-**This step changes live GitHub repository rules.** Execute only after reviewing the exact proposed JSON and original baseline. The PUT is conditional on **fresh GET AND successful preflight** in the same block; keep the interval minimal. This is *not* provider-level atomic compare-and-swap: a concurrent edit between GET and PUT remains possible and must be reconciled on readback.
+**Historical-only step: already executed; do not run again against the old baseline.** At the time, this PUT changed live GitHub repository rules after the reviewed payload and original baseline were verified. The PUT is conditional on **fresh GET AND successful preflight** in the same block; keep the interval minimal. This is *not* provider-level atomic compare-and-swap: a concurrent edit between GET and PUT remains possible and must be reconciled on readback.
 
 ```bash
 if gh api repos/ryjen/config-drift-guard/rulesets/18793052 \
@@ -94,10 +106,10 @@ Provider validation of `pull_request` jobs usually concerns the candidate **merg
 
 ## Completion criteria
 
-- [ ] Read-only proposal and unchanged provider baseline both pass.
-- [ ] Admin applies the exact reviewed policy (separate authorized operation).
-- [ ] Active readback and effective `main` rules show strict, GitHub Actions-source-bound `check` and required PRs with **no bypass**.
-- [ ] Deliberately failing disposable normal PR yields a failed `check` **and** provider `mergeable_state: blocked`; cleanup completed.
-- [ ] Baseline snapshot, exact operator action, readback, failure evidence and residual limits documented in #43.
+- [x] Authenticated read-only proposal and original provider baseline passed before activation (the original baseline must now fail).
+- [x] Administrator applied the reviewed provider policy through an authorized `gh` session.
+- [x] Active and effective `main` readbacks show required PR and strict, GitHub Actions-source-bound `check`, with **no standing bypass**.
+- [x] Deliberately failing [PR #45](https://github.com/ryjen/config-drift-guard/pull/45) yielded a failed `check` **and** provider `mergeable_state: blocked`. PR closed unmerged and branch deleted.
+- [x] Baseline, mutation, independent readback, provider-negative evidence and residual limits recorded in [issue #43](https://github.com/ryjen/config-drift-guard/issues/43#issuecomment-6244761893).
 
-**A passing CI job or merged documentation PR alone is not completion of #43.**
+**Claim boundary:** Provider-backed required-PR/failed-check admission is verified for this repository; missing-check/direct-push paths and external administrator-control-plane changes are **not** separately qualified. Never replay the historical baseline PUT or claim CI alone established enforcement.
