@@ -10,7 +10,8 @@ corepack pnpm lint          # Biome, fast
 corepack pnpm typecheck     # tsc --noEmit across 4 packages
 corepack pnpm build         # tsc + next build across 4 packages
 corepack pnpm test          # Vitest across 4 packages (in-memory SQLite)
-corepack pnpm check         # lint → typecheck → build → test (full gate)
+corepack pnpm test:admission # Python stdlib GitHub ruleset preflight tests
+corepack pnpm check         # lint → typecheck → build → test → admission tests (full gate)
 corepack pnpm dev           # API on 127.0.0.1:4000, web on 127.0.0.1:3000
 ```
 
@@ -52,6 +53,7 @@ apps/web/                    # Next.js 15, single-page operator console ("use cl
 
 - Integration tests use in-memory SQLite (`:memory:`) — no external services required. State-machine unit tests use `StubRunStateStore` without SQLite; isolated Fastify route tests use mocked use-case/event ports without a database or observed-state fixture files.
 - 19 test files, 81 tests across the workspace at the Phase 4 completion checkpoint (63 API, 5 contracts, 10 drift-engine, 3 web); the separate opt-in Chromium Playwright suite contains 2 browser scenarios.
+- The repository admission preflight suite (`tests/test_main_ruleset_admission.py`) is stdlib-only Python 3 and is included in the root `corepack pnpm check` gate. It checks a **proposed** GitHub ruleset; successful tests are not evidence that the live provider protects `main`. The tracked activation runbook is `docs/operations/main-admission.md`.
 - `apps/web` includes unit tests for SSE subscription state transitions.
 - API integration tests (`apps/api/src/app.test.ts`) exercise the full happy path including async approval + reconciliation via polling.
 - No snapshot tests, no MSW, no test containers. The opt-in `ci:e2e` label enables real Chromium Playwright coverage for trusted same-repository PRs, with bounded steps and no self-hosted runner.
