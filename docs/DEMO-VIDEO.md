@@ -1,6 +1,6 @@
 # Portfolio demo storyboard (75–90 seconds)
 
-**State:** This storyboard describes a possible owner-operated recording; **no continuous manual recording or approved public release exists**. A separate **silent edited internal review cut** has been assembled from genuine Chromium test recordings and screenshots. Its [integrity/QA report](DEMO-REVIEW-QUALITY.md) and [descriptive WebVTT draft](DEMO-REVIEW-DESCRIPTIONS.vtt) do not constitute owner publication approval. The [full hands-on walkthrough](DEMO.md) remains the source for reproducible demo behavior.
+**State:** The owner has approved an **87-second narrated edited video** for repository publication, showing real synthetic Playwright browser-test recordings with explicit configuration comparisons. This is **not a continuous operator recording or a production deployment**. Public distribution is not complete: the approved MP4 still requires a public release asset, voice/media rights verification and a tested public playback link. [Artifact digest and release checklist](DEMO-VIDEO-PUBLICATION.md). This document preserves the earlier storyboard and recording method; the [hands-on walkthrough](DEMO.md) remains the source for reproducible application behavior.
 
 **Audience:** Staff/platform hiring managers and reviewers evaluating deterministic reconciliation, approval boundaries and failure behavior. **Scope:** local, synthetic service-configuration adapter; not a connection to production systems, cloud resources or real infrastructure.
 
