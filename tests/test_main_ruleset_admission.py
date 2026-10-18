@@ -57,6 +57,24 @@ class AdmissionRulesetTests(unittest.TestCase):
         )
         self.assertIn("observed provider ruleset differs from expected policy", result)
 
+    def test_extra_proposed_pr_parameters_are_rejected(self) -> None:
+        item = proposal()
+        rule = next(x for x in item["rules"] if x["type"] == "pull_request")
+        rule["parameters"]["require_extra_approval_for_unattributed_changes"] = True
+        self.assertIn("unexpected pull_request parameters", checker.validate_proposal(item))
+
+    def test_extra_proposed_required_check_parameters_are_rejected(self) -> None:
+        item = proposal()
+        rule = next(x for x in item["rules"] if x["type"] == "required_status_checks")
+        rule["parameters"]["do_not_enforce_on_create"] = True
+        self.assertIn("unexpected required_status_checks parameters", checker.validate_proposal(item))
+
+    def test_extra_proposed_rule_fields_are_rejected(self) -> None:
+        item = proposal()
+        rule = next(x for x in item["rules"] if x["type"] == "pull_request")
+        rule["override"] = "unsafe"
+        self.assertIn("unexpected pull_request rule fields", checker.validate_proposal(item))
+
     def test_required_check_missing_does_not_qualify(self) -> None:
         item = proposal()
         item["rules"][3]["parameters"]["required_status_checks"].pop()
