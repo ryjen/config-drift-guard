@@ -1,0 +1,19 @@
+{
+  "release_tag": "demo-video-2026-10-18",
+  "release_title": "Config Drift Guard — Drift Detection & Approval-Gated Reconciliation Demo",
+  "target_branch": "main",
+  "release_type": "video demonstration; not a software/source-license release",
+  "publication_status": "PENDING: github release binary upload and rights verification",
+  "assets": [
+    {
+      "filename": "config-drift-guard-demo-mobile-final-review.mp4",
+      "bytes": 8373190,
+      "sha256": "fa0d50106b9f989970b7bd18c83ba7eacb6eb8cf68d36108a3e1146f9396fa5b"
+    },
+    {
+      "filename": "config-drift-guard-final-captions.vtt",
+      "bytes": 1652,
+      "sha256": "67e1da18a5ad36a6aa9228a66c4ecbccde8cad51fe609e66680ecd6cb98e6e83"
+    }
+  ]
+}
