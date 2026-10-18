@@ -23,7 +23,7 @@ No GitHub automation/CI, application reconciliation logic, or production runtime
 
 ## Operator sequence — inspect, guard, activate, observe
 
-Use a trusted clone of the **reviewed and merged** main revision containing this file, script and candidate JSON. Check `gh auth status` and repository admin permission. The connected read-only GitHub integration can inspect policy but **cannot perform ruleset PUT**. Never copy a token into logs, issues or terminals.
+Use a trusted clone of the **reviewed and merged** main revision containing this file, script and candidate JSON. Check `gh auth status` and repository admin permission. **A truly authenticated provider readback is required:** anonymous GitHub API responses can omit `bypass_actors` altogether, which makes the verifier intentionally fail its baseline comparison. Do not treat that redacted public result as `bypass_actors: []`, and do not remove a guard to make it pass. The connected read-only GitHub integration can inspect policy but **cannot perform ruleset PUT**. Never copy a token into logs, issues or terminals.
 
 ### 1. Read-only source and baseline validation
 
