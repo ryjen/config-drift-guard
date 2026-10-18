@@ -121,10 +121,21 @@ def validate_proposal(value: dict[str, Any]) -> list[str]:
     if rule_map["deletion"] != {"type": "deletion"} or rule_map["non_fast_forward"] != {"type": "non_fast_forward"}:
         errors.append("existing deletion / non-fast-forward controls must remain unchanged")
 
+    if set(rule_map["pull_request"]) != {"type", "parameters"}:
+        errors.append("unexpected pull_request rule fields")
     pr = rule_map["pull_request"].get("parameters")
     if not isinstance(pr, dict):
         errors.append("pull_request parameters missing")
     else:
+        if set(pr) != {
+            "allowed_merge_methods",
+            "dismiss_stale_reviews_on_push",
+            "require_code_owner_review",
+            "require_last_push_approval",
+            "required_approving_review_count",
+            "required_review_thread_resolution",
+        }:
+            errors.append("unexpected pull_request parameters")
         methods = pr.get("allowed_merge_methods")
         if not isinstance(methods, list) or any(not isinstance(x, str) for x in methods) or len(methods) != 3 or set(methods) != {"merge", "squash", "rebase"}:
             errors.append("unexpected permitted merge methods")
@@ -137,10 +148,14 @@ def validate_proposal(value: dict[str, Any]) -> list[str]:
         ]:
             if type(pr.get(field)) is not type(required) or pr[field] != required:
                 errors.append(f"pull_request.{field} unexpected")
+    if set(rule_map["required_status_checks"]) != {"type", "parameters"}:
+        errors.append("unexpected required_status_checks rule fields")
     checks = rule_map["required_status_checks"].get("parameters")
     if not isinstance(checks, dict):
         errors.append("required_status_checks parameters missing")
     else:
+        if set(checks) != {"strict_required_status_checks_policy", "required_status_checks"}:
+            errors.append("unexpected required_status_checks parameters")
         if checks.get("strict_required_status_checks_policy") is not True:
             errors.append("required checks must enforce current base")
         expected_checks = {("check", 15368)}
