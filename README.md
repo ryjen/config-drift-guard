@@ -52,7 +52,7 @@ The API defaults to `http://127.0.0.1:4000` and the web app defaults to `http://
 
 See [docs/DEMO.md](docs/DEMO.md) for the full walkthrough including failure paths.
 
-For an **unrecorded** 75–90-second portfolio walkthrough, see [the screen-recording storyboard](docs/DEMO-VIDEO.md). It includes the approval flow, stale-plan rejection, preparation/reset steps, and recording safety notes; it is not a completed demo video.
+An **87-second narrated browser-demo video** has been owner-approved for repository publication, with concrete before/desired/after configuration and a stale-plan rejection. The final mobile-compatible MP4 is **not yet publicly hosted**, so no video link is advertised here. See [the approved media record and publishing checklist](docs/DEMO-VIDEO-PUBLICATION.md) and [the recording storyboard](docs/DEMO-VIDEO.md). The recording uses edited synthetic Chromium test footage, not a production deployment.
 
 ## Product model
 
