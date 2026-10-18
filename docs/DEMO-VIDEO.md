@@ -1,10 +1,10 @@
 # Portfolio demo storyboard (75–90 seconds)
 
-**State:** This storyboard describes a possible owner-operated recording; **no continuous manual recording or approved public release exists**. A separate **silent edited internal review cut** has been assembled from genuine Chromium test recordings and screenshots. Its [integrity/QA report](DEMO-REVIEW-QUALITY.md) and [descriptive WebVTT draft](DEMO-REVIEW-DESCRIPTIONS.vtt) do not constitute owner publication approval. The [full hands-on walkthrough](DEMO.md) remains the source for reproducible demo behavior.
+**Current release (2026-10-18):** The owner approved and published an **87-second narrated, edited recording of genuine Playwright/Chromium browser tests**, with explanatory configuration cards. [View the GitHub video-only prerelease](https://github.com/ryjen/config-drift-guard/releases/tag/demo-video-2026-10-18), [download the mobile-compatible 720p MP4](https://github.com/ryjen/config-drift-guard/releases/download/demo-video-2026-10-18/config-drift-guard-demo-mobile-final-review.mp4), or [download English WebVTT captions](https://github.com/ryjen/config-drift-guard/releases/download/demo-video-2026-10-18/config-drift-guard-final-captions.vtt). The footage is *not* a continuous manually operated session or production use. The historical storyboard below remains as the capture plan; [the full hands-on walkthrough](DEMO.md) is still the reproducible behavior reference. [Media/source rights review](https://github.com/ryjen/config-drift-guard/issues/34) remains a separate open concern.
 
 **Audience:** Staff/platform hiring managers and reviewers evaluating deterministic reconciliation, approval boundaries and failure behavior. **Scope:** local, synthetic service-configuration adapter; not a connection to production systems, cloud resources or real infrastructure.
 
-## Preparation
+## Historical capture preparation / reproducibility
 
 1. Use an isolated checkout at a known commit. Keep only fixture data in the working tree; close terminals showing tokens, personal paths, email, hostnames or unrelated services.
 2. Run `corepack pnpm install --frozen-lockfile` and `corepack pnpm check` before recording. Save the exact commit SHA and test result with the video description. Do **not** claim checks passed unless actually observed. **`pnpm check` does not include Chromium browser E2E**; if describing browser automated acceptance, also execute `pnpm test:e2e` with the [documented supported runtime](TESTING.md) and keep its separate exact-revision result.
@@ -48,7 +48,7 @@ The opt-in setting `CONFIG_DRIFT_GUARD_DEMO_CAPTURE=1` enables Playwright's real
 
 ## Current evidence and rights context
 
-The unpublished review cut has [measured integrity and limited visual QA](DEMO-REVIEW-QUALITY.md) and a [nine-cue silent descriptive track](DEMO-REVIEW-DESCRIPTIONS.vtt). For dependency provenance, see the [reproducible locally installed-manifest audit](provenance/dependency-license-inventory-2026-10-16.md) and [supplementary exact-version npm registry declarations](provenance/npm-registry-license-metadata-2026-10-16.md). Those reports are **metadata evidence only**, not license grants or notice compliance. [Issue #39](https://github.com/ryjen/config-drift-guard/issues/39) owns final review and release; [#34](https://github.com/ryjen/config-drift-guard/issues/34) owns rights and license decisions.
+The published 87-second video is an edited derivative of the Chromium test captures. The earlier [internal integrity/QA report](DEMO-REVIEW-QUALITY.md) and [nine-cue silent descriptive VTT](DEMO-REVIEW-DESCRIPTIONS.vtt) refer to a **superseded silent review cut**, not the approved final narration or its [15-cue release captions](https://github.com/ryjen/config-drift-guard/releases/download/demo-video-2026-10-18/config-drift-guard-final-captions.vtt). The final release carries an MP4 SHA-256 of `fa0d50106b9f989970b7bd18c83ba7eacb6eb8cf68d36108a3e1146f9396fa5b` and VTT SHA-256 of `67e1da18a5ad36a6aa9228a66c4ecbccde8cad51fe609e66680ecd6cb98e6e83`, independently confirmed against GitHub asset metadata. For dependency provenance, see the [installed-manifest audit](provenance/dependency-license-inventory-2026-10-16.md) and [exact-version registry declarations](provenance/npm-registry-license-metadata-2026-10-16.md). Those reports do **not** grant distribution rights. [Issue #39](https://github.com/ryjen/config-drift-guard/issues/39) tracks repository/portfolio integration and link verification; [#34](https://github.com/ryjen/config-drift-guard/issues/34) tracks rights and licensing.
 
 ## Publication checklist
 
@@ -57,6 +57,8 @@ The unpublished review cut has [measured integrity and limited visual QA](DEMO-R
 - [ ] Verify `stale_remediation_plan` appears only for the genuinely changed observed fixture, with apply/verify skipped and fixture content unchanged.
 - [ ] Add readable captions, alt text/description, and a link to the GitHub repository and reproducible demo steps.
 - [ ] Review for identifying data, third-party assets, trademarks, and redistribution restrictions before publishing video files; never commit raw source captures containing secrets.
-- [ ] Publish only after owner confirmation of the recorded content and chosen host. After publication, add the final video link to README/site by reviewed PR.
+- [x] Owner approved the corrected narrated cut and published the video with a GitHub prerelease on 2026-10-18.
+- [ ] Link the approved release from the README and portfolio through reviewed changes; verify that unauthenticated visitors can reach the release and caption asset.
+- [ ] Review applicable ElevenLabs/voice, font, and other media distribution terms; source-code licensing remains a separate owner decision under #34.
 
 **Limitations to state:** synthetic adapters; no live Kubernetes/Terraform reconciliation; tests and demo are not enterprise deployment evidence; no production adoption claim. The source repository's license/provenance remains an independent decision ([issue #34](https://github.com/ryjen/config-drift-guard/issues/34)).
