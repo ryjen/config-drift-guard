@@ -6,6 +6,22 @@ It models drift analysis as an explicit, persisted workflow so operators can ini
 
 The operator console runs locally; see the [five-minute demo](docs/DEMO.md) for the walkthrough.
 
+## Watch the recorded demo (87 seconds)
+
+[**Watch or download the narrated Config Drift Guard demo**](https://github.com/ryjen/config-drift-guard/releases/tag/demo-video-2026-10-18) · [MP4 (720p)](https://github.com/ryjen/config-drift-guard/releases/download/demo-video-2026-10-18/config-drift-guard-demo-mobile-final-review.mp4) · [English captions (WebVTT)](https://github.com/ryjen/config-drift-guard/releases/download/demo-video-2026-10-18/config-drift-guard-final-captions.vtt)
+
+The approved 87-second demo shows the exact **before → drift → approved result** for the synthetic `api-service` fixture:
+
+| Managed field | Observed before | Desired / verified after approval |
+| --- | --- | --- |
+| Image | `api:v1` | `api:v2` |
+| Replicas | `1` | `3` |
+| `LOG_LEVEL` | `debug` | `info` |
+
+After approval, verification finds **no remaining drift**. A separate stale-plan scenario changes the observed image to `api:v3` *after planning*; preflight rejects the outdated plan without overwriting the changed state. An explicit operator rejection also makes no changes.
+
+**What you're watching:** an edited assembly of real automated Playwright/Chromium tests against local synthetic fixtures, with explanatory cards, ElevenLabs narration and separately downloadable captions. It is **not** a continuous manual recording, a production deployment, or independent security certification. This is a **video-only prerelease**, separate from the project's [unresolved source licensing and media-provenance decisions](https://github.com/ryjen/config-drift-guard/issues/34).
+
 ## Status
 
 The evaluator-ready vertical slice is implemented.
@@ -52,7 +68,7 @@ The API defaults to `http://127.0.0.1:4000` and the web app defaults to `http://
 
 See [docs/DEMO.md](docs/DEMO.md) for the full walkthrough including failure paths.
 
-For an **unrecorded** 75–90-second portfolio walkthrough, see [the screen-recording storyboard](docs/DEMO-VIDEO.md). It includes the approval flow, stale-plan rejection, preparation/reset steps, and recording safety notes; it is not a completed demo video.
+The [screen-recording storyboard and provenance notes](docs/DEMO-VIDEO.md) explain the captured test scenarios, editing disclosures and release checks. The [published 87-second demo](https://github.com/ryjen/config-drift-guard/releases/tag/demo-video-2026-10-18) uses an edited selection of those real test captures.
 
 ## Product model
 
